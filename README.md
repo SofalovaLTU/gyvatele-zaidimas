@@ -18,6 +18,25 @@ Atidaryk failą `index.html` su naršykle (Chrome, Safari, Firefox).
 - 🧱 **Labirintas** – su kliūtimis
 - 🔥 **Beprotis** – žaibiškas greitis
 
+Renkant kristalus gyvatė palaipsniui greitėja.
+
+## Galios bonusai
+
+Kartais arenoje pasirodo bonusai (dingsta po kelių sekundžių):
+
+- ⭐ **Dvigubi taškai** – 8 sek. dvigubai daugiau taškų
+- 🐢 **Sulėtinimas** – 7 sek. lėtesnė gyvatė (lengviau)
+- ✂️ **Sutrumpinimas** – sutrumpina gyvatę ir duoda +25 taškus
+
+## Garsas
+
+Garso efektai ir fono muzika generuojami naršyklėje (be jokių failų).
+Garsą galima išjungti 🔊 mygtuku viršuje dešinėje.
+
+## Rekordų lentelė
+
+Geriausi 5 rezultatai išsaugomi atskirai kiekvienam lygiui (tavo naršyklėje).
+
 ## Pastaba
 
 Žaidimui reikia interneto ryšio (Three.js biblioteka užkraunama iš interneto).
