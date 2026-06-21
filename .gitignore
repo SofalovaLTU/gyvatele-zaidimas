@@ -1,0 +1,7 @@
+# macOS sistemos failai
+.DS_Store
+
+# Redaktorių laikini failai
+*.swp
+.vscode/
+.idea/

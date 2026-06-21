@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gyvatėlė 3D</title>
+<style>
+  :root{
+    --neon:#00ffc8;
+    --neon2:#ff2bd6;
+    --bg0:#06070f;
+    --bg1:#0d1024;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+  html,body{width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 30%,var(--bg1),var(--bg0));}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  .hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    padding:18px 26px;pointer-events:none;z-index:10;}
+  .hud .pill{background:rgba(10,14,30,.55);backdrop-filter:blur(8px);
+    border:1px solid rgba(0,255,200,.25);border-radius:14px;padding:10px 18px;
+    color:#cfeefe;font-weight:600;letter-spacing:.5px;box-shadow:0 0 22px rgba(0,255,200,.12)}
+  .hud .pill b{color:var(--neon);font-size:1.25em}
+  .hud .right{display:flex;gap:12px}
+
+  .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;z-index:30;text-align:center;color:#eaf6ff;
+    background:radial-gradient(circle at 50% 40%,rgba(13,16,36,.78),rgba(6,7,15,.94));
+    backdrop-filter:blur(6px);transition:opacity .35s}
+  .overlay.hidden{opacity:0;pointer-events:none}
+  h1{font-size:clamp(38px,8vw,86px);font-weight:800;letter-spacing:2px;
+    background:linear-gradient(90deg,var(--neon),var(--neon2));-webkit-background-clip:text;
+    background-clip:text;color:transparent;text-shadow:0 0 40px rgba(0,255,200,.25);margin-bottom:8px}
+  .sub{color:#9fb6cc;margin-bottom:30px;max-width:560px;line-height:1.5;font-size:16px}
+  .levels{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:640px;margin-bottom:26px}
+  .lv{cursor:pointer;width:150px;padding:18px 14px;border-radius:18px;
+    background:rgba(12,18,40,.6);border:1px solid rgba(0,255,200,.2);transition:.2s;pointer-events:auto}
+  .lv:hover{transform:translateY(-4px);border-color:var(--neon);box-shadow:0 10px 30px rgba(0,255,200,.18)}
+  .lv .ic{font-size:34px;margin-bottom:6px}
+  .lv .nm{font-weight:700;font-size:18px;color:#eaf6ff}
+  .lv .ds{font-size:12px;color:#8aa0b6;margin-top:4px;line-height:1.35}
+  .btn{pointer-events:auto;cursor:pointer;border:none;border-radius:14px;padding:14px 40px;
+    font-size:18px;font-weight:700;color:#04121a;letter-spacing:1px;
+    background:linear-gradient(90deg,var(--neon),#36e0ff);box-shadow:0 8px 30px rgba(0,255,200,.35);transition:.2s}
+  .btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+  .hint{margin-top:22px;color:#7f93a8;font-size:13px;line-height:1.7}
+  .hint kbd{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+    border-radius:6px;padding:2px 8px;font-family:monospace;color:#cfeefe}
+  .big{font-size:clamp(40px,9vw,90px)}
+  .mob{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:20;
+    display:none;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,64px);gap:8px}
+  .mob button{width:64px;height:64px;border-radius:16px;border:1px solid rgba(0,255,200,.3);
+    background:rgba(10,16,34,.6);color:var(--neon);font-size:26px;backdrop-filter:blur(6px)}
+  .mob .u{grid-column:2}.mob .l{grid-column:1;grid-row:2}.mob .d{grid-column:2;grid-row:2}.mob .r{grid-column:3;grid-row:2}
+  @media (max-width:760px){.mob{display:grid}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="hud">
+  <div class="pill">Taškai <b id="score">0</b></div>
+  <div class="right">
+    <div class="pill">Lygis <b id="levelName">—</b></div>
+    <div class="pill">Rekordas <b id="best">0</b></div>
+  </div>
+</div>
+
+<!-- Pradžios ekranas -->
+<div class="overlay" id="menu">
+  <h1>GYVATĖLĖ 3D</h1>
+  <div class="sub">Modernus 3D gyvatėlės žaidimas su neoninėmis kameros sekmėmis. Pasirink lygį ir rink energijos kristalus. Nepataikyk į sieną ar į save!</div>
+  <div class="levels" id="levelList"></div>
+  <div class="hint">
+    Valdymas: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> arba <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;·&nbsp; <kbd>P</kbd> – pauzė &nbsp;·&nbsp; <kbd>R</kbd> – iš naujo
+  </div>
+</div>
+
+<!-- Game over -->
+<div class="overlay hidden" id="gameover">
+  <h1 class="big">ŽAIDIMAS BAIGTAS</h1>
+  <div class="sub">Tavo rezultatas: <b id="finalScore" style="color:var(--neon)">0</b><br><span id="newRec" style="color:var(--neon2);font-weight:700"></span></div>
+  <button class="btn" id="retryBtn">ŽAISTI DAR KARTĄ</button>
+  <div class="hint">arba paspausk <kbd>R</kbd></div>
+</div>
+
+<!-- Pauzė -->
+<div class="overlay hidden" id="pause">
+  <h1>PAUZĖ</h1>
+  <div class="sub">Paspausk <kbd>P</kbd> kad tęstum</div>
+</div>
+
+<!-- Mobilus valdymas -->
+<div class="mob">
+  <button class="u" data-dir="up">▲</button>
+  <button class="l" data-dir="left">◀</button>
+  <button class="d" data-dir="down">▼</button>
+  <button class="r" data-dir="right">▶</button>
+</div>
+
+<!-- Three.js UMD (klasikinis script, be modulių – veikia visur, įskaitant peržiūros webview) -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="loadThreeFallback()"></script>
+<script>
+function loadThreeFallback(){
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  document.head.appendChild(s);
+}
+</script>
+
+<script>
+// Klaidų rodymas ekrane (kad nebūtų „tuščio" meniu be paaiškinimo)
+window.addEventListener('error', function(e){
+  var m=e.message||(e.error&&e.error.message)||'Nežinoma klaida';
+  showFatal('Klaida: '+m);
+});
+function showFatal(msg){
+  var el=document.getElementById('errBox');
+  if(!el){ el=document.createElement('div'); el.id='errBox';
+    el.style.cssText='position:fixed;bottom:14px;left:14px;right:14px;z-index:999;background:rgba(40,0,20,.9);color:#ffb3d9;border:1px solid #ff2bd6;border-radius:10px;padding:10px 14px;font:13px/1.5 monospace;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg+'\n\nJei matai šią klaidą: atsisiųsk failą ir atidaryk dukart spustelėjus arba paleisk per vietinį serverį.';
+}
+// Patikra ar Three užsikrovė (jei nėra interneto / CDN užblokuotas)
+window.addEventListener('load', function(){
+  if(typeof THREE==='undefined'){
+    showFatal('Nepavyko užkrauti Three.js bibliotekos iš interneto (CDN).\nPatikrink interneto ryšį arba atidaryk failą tiesiogiai naršyklėje.');
+  }
+});
+</script>
+
+<script>
+if(typeof THREE!=='undefined'){
+// ---------- Lygiai ----------
+const LEVELS = [
+  { id:'easy',   nm:'Pradedantysis', ic:'🌱', ds:'Lėtas tempas, didelė arena, be kliūčių', grid:15, speed:200, walls:false, color:0x00ffc8 },
+  { id:'normal', nm:'Klasikinis',    ic:'⚡', ds:'Vidutinis greitis, atspindinčios sienos', grid:17, speed:140, walls:false, color:0x36e0ff },
+  { id:'maze',   nm:'Labirintas',    ic:'🧱', ds:'Kliūčių blokai arenoje, atsargiai!',     grid:19, speed:120, walls:true,  color:0xff2bd6 },
+  { id:'insane', nm:'Beprotis',      ic:'🔥', ds:'Žaibiškas greitis tik profesionalams',   grid:21, speed:80,  walls:true,  color:0xffaa00 },
+];
+
+// ---------- Three.js scena ----------
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x06070f, 0.035);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 200);
+
+// Šviesos
+scene.add(new THREE.AmbientLight(0x5566aa, 0.6));
+const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+dir.position.set(8,18,6); dir.castShadow = true;
+dir.shadow.mapSize.set(1024,1024);
+dir.shadow.camera.near=1; dir.shadow.camera.far=60;
+dir.shadow.camera.left=-20;dir.shadow.camera.right=20;dir.shadow.camera.top=20;dir.shadow.camera.bottom=-20;
+scene.add(dir);
+const point = new THREE.PointLight(0x00ffc8, 1.2, 40); point.position.set(0,8,0); scene.add(point);
+
+// Žvaigždės fone
+(function(){
+  const g = new THREE.BufferGeometry();
+  const n=600, pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const r=40+Math.random()*60, t=Math.random()*Math.PI*2, p=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(p)*Math.cos(t); pos[i*3+1]=Math.abs(r*Math.cos(p))*0.5+5; pos[i*3+2]=r*Math.sin(p)*Math.sin(t);
+  }
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x88aaff,size:0.25,transparent:true,opacity:.7})));
+})();
+
+const boardGroup = new THREE.Group();
+scene.add(boardGroup);
+
+// ---------- Būsena ----------
+let GRID=17, SPEED=140, WALLS=false, ACCENT=0x36e0ff;
+let snake=[], dir3={x:1,z:0}, nextDir={x:1,z:0};
+let food=null, foodPos=null, obstacles=[], obstacleMeshes=[];
+let segMeshes=[], boardTiles, wallMesh;
+let score=0, best=+(localStorage.getItem('snake3d_best')||0);
+let running=false, paused=false, tickAcc=0, lastTime=0;
+let curLevel=LEVELS[1];
+
+document.getElementById('best').textContent = best;
+
+const materials = {
+  head: new THREE.MeshStandardMaterial({color:0x00ffc8,emissive:0x00ffc8,emissiveIntensity:.6,roughness:.2,metalness:.4}),
+  body: new THREE.MeshStandardMaterial({color:0x0fa, emissive:0x008866,emissiveIntensity:.35,roughness:.3,metalness:.5}),
+  food: new THREE.MeshStandardMaterial({color:0xff2bd6,emissive:0xff2bd6,emissiveIntensity:.8,roughness:.1,metalness:.6}),
+  obst: new THREE.MeshStandardMaterial({color:0x33405e,emissive:0x111933,roughness:.6,metalness:.3}),
+};
+
+function cell(x,z){ return {x:x - (GRID-1)/2, z:z - (GRID-1)/2}; }
+
+function buildBoard(){
+  boardGroup.clear();
+  segMeshes=[]; obstacleMeshes=[];
+  const half=GRID/2;
+
+  // Grindys
+  const floorMat = new THREE.MeshStandardMaterial({color:0x0a0e1e,roughness:.85,metalness:.2});
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(GRID,0.4,GRID), floorMat);
+  floor.position.y=-0.4; floor.receiveShadow=true; boardGroup.add(floor);
+
+  // Tinklelio linijos
+  const grid = new THREE.GridHelper(GRID, GRID, ACCENT, 0x1a2340);
+  grid.material.opacity=.35; grid.material.transparent=true; grid.position.y=0.01;
+  boardGroup.add(grid);
+
+  // Šviečiantis kraštas
+  const edgeMat = new THREE.MeshStandardMaterial({color:ACCENT,emissive:ACCENT,emissiveIntensity:.7});
+  const t=0.3, h=0.8;
+  [[0,half],[0,-half],[half,0],[-half,0]].forEach(([x,z],i)=>{
+    const horiz=i<2;
+    const geo=new THREE.BoxGeometry(horiz?GRID+t*2:t, h, horiz?t:GRID+t*2);
+    const m=new THREE.Mesh(geo,edgeMat); m.position.set(x,h/2-0.1,z); boardGroup.add(m);
+  });
+
+  // Kliūtys
+  obstacles.forEach(o=>{
+    const c=cell(o.x,o.z);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(.9,1.1,.9), materials.obst);
+    m.position.set(c.x,0.55,c.z); m.castShadow=true; m.receiveShadow=true;
+    boardGroup.add(m); obstacleMeshes.push(m);
+  });
+}
+
+function makeSegment(isHead){
+  const geo = new THREE.SphereGeometry(isHead?0.46:0.4, 20, 20);
+  const m = new THREE.Mesh(geo, isHead?materials.head:materials.body);
+  m.castShadow=true; boardGroup.add(m); return m;
+}
+
+function spawnFood(){
+  let p, tries=0;
+  do{
+    p={x:(Math.random()*GRID)|0, z:(Math.random()*GRID)|0}; tries++;
+  }while(tries<200 && (snake.some(s=>s.x===p.x&&s.z===p.z) || obstacles.some(o=>o.x===p.x&&o.z===p.z)));
+  foodPos=p;
+  if(!food){
+    food=new THREE.Mesh(new THREE.OctahedronGeometry(0.42,0), materials.food);
+    food.castShadow=true; boardGroup.add(food);
+    const halo=new THREE.PointLight(0xff2bd6,1.5,5); food.add(halo);
+  }
+  const c=cell(p.x,p.z); food.position.set(c.x,0.5,c.z);
+}
+
+function genObstacles(){
+  obstacles=[];
+  if(!WALLS) return;
+  const count=Math.floor(GRID*0.9);
+  const mid=Math.floor(GRID/2);
+  for(let i=0;i<count;i++){
+    let x,z,tries=0;
+    do{ x=(Math.random()*GRID)|0; z=(Math.random()*GRID)|0; tries++; }
+    while(tries<50 && (Math.abs(x-mid)<2 && Math.abs(z-mid)<2));
+    if(!obstacles.some(o=>o.x===x&&o.z===z)) obstacles.push({x,z});
+  }
+}
+
+function startGame(level){
+  curLevel=level;
+  GRID=level.grid; SPEED=level.speed; WALLS=level.walls; ACCENT=level.color;
+  document.getElementById('levelName').textContent=level.nm;
+  document.documentElement.style.setProperty('--neon', '#'+ACCENT.toString(16).padStart(6,'0'));
+
+  const c0=Math.floor(GRID/2);
+  snake=[{x:c0,z:c0},{x:c0-1,z:c0},{x:c0-2,z:c0}];
+  dir3={x:1,z:0}; nextDir={x:1,z:0};
+  score=0; document.getElementById('score').textContent=0;
+
+  genObstacles();
+  buildBoard();
+  // segmentų meshai
+  segMeshes.forEach(m=>boardGroup.remove(m)); segMeshes=[];
+  snake.forEach((s,i)=>segMeshes.push(makeSegment(i===0)));
+  spawnFood();
+  syncMeshes();
+
+  hide('menu'); hide('gameover'); hide('pause');
+  running=true; paused=false; tickAcc=0; lastTime=performance.now();
+}
+
+function syncMeshes(){
+  // pridėti/pašalinti pagal ilgį
+  while(segMeshes.length<snake.length) segMeshes.push(makeSegment(false));
+  while(segMeshes.length>snake.length){ boardGroup.remove(segMeshes.pop()); }
+  snake.forEach((s,i)=>{
+    const c=cell(s.x,s.z); const m=segMeshes[i];
+    m.position.set(c.x,0.4,c.z);
+    m.material = i===0?materials.head:materials.body;
+    const sc = i===0?1:Math.max(0.55, 1-i*0.02);
+    m.scale.setScalar(sc);
+  });
+}
+
+function tick(){
+  dir3=nextDir;
+  const head=snake[0];
+  let nx=head.x+dir3.x, nz=head.z+dir3.z;
+
+  // Sienos: praeina kiaurai (wrap) lengvuose, kerta beprotiškuose
+  if(nx<0||nx>=GRID||nz<0||nz>=GRID){
+    return gameOver();
+  }
+  // savęs kirtimas
+  if(snake.some((s,i)=>i<snake.length-1 && s.x===nx&&s.z===nz)) return gameOver();
+  // kliūtys
+  if(obstacles.some(o=>o.x===nx&&o.z===nz)) return gameOver();
+
+  snake.unshift({x:nx,z:nz});
+
+  if(foodPos && nx===foodPos.x && nz===foodPos.z){
+    score += 10 + Math.floor((220-SPEED)/20);
+    document.getElementById('score').textContent=score;
+    spawnFood();
+    pulseFood();
+  } else {
+    snake.pop();
+  }
+  syncMeshes();
+}
+
+function gameOver(){
+  running=false;
+  document.getElementById('finalScore').textContent=score;
+  const rec = score>best;
+  if(rec){ best=score; localStorage.setItem('snake3d_best',best); document.getElementById('best').textContent=best; }
+  document.getElementById('newRec').textContent = rec? '🏆 NAUJAS REKORDAS!' : '';
+  show('gameover');
+  // sukrėtimas
+  shake=12;
+}
+
+let shake=0;
+function pulseFood(){ if(food) food.scale.setScalar(1.8); }
+
+// ---------- Kamera ----------
+function updateCamera(dt){
+  const head = snake[0]?cell(snake[0].x,snake[0].z):{x:0,z:0};
+  const dist = GRID*0.95;
+  const target = new THREE.Vector3(head.x*0.3, 0, head.z*0.3);
+  const desired = new THREE.Vector3(head.x*0.25, dist*0.85, head.z*0.25 + dist*0.75);
+  camera.position.lerp(desired, Math.min(1, dt*2.2));
+  if(shake>0){ camera.position.x += (Math.random()-.5)*shake*0.05; camera.position.y += (Math.random()-.5)*shake*0.05; shake*=0.85; if(shake<0.2)shake=0; }
+  camera.lookAt(target);
+}
+
+// ---------- Animacijos ciklas ----------
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-lastTime)/1000); lastTime=now;
+
+  if(running && !paused){
+    tickAcc += dt*1000;
+    while(tickAcc>=SPEED){ tickAcc-=SPEED; tick(); if(!running)break; }
+  }
+
+  // sukimas / pulsavimas
+  if(food){
+    food.rotation.y += dt*2; food.rotation.x += dt*1.2;
+    food.position.y = 0.5 + Math.sin(now*0.004)*0.12;
+    food.scale.lerp(new THREE.Vector3(1,1,1), dt*4);
+  }
+  point.position.set(camera.position.x*0.2,8,camera.position.z*0.2);
+  updateCamera(dt);
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(loop);
+
+// ---------- Valdymas ----------
+function setDir(x,z){
+  if(x===-dir3.x && z===-dir3.z) return; // negali apsisukti
+  nextDir={x,z};
+}
+const keymap={
+  ArrowUp:[0,-1],KeyW:[0,-1], ArrowDown:[0,1],KeyS:[0,1],
+  ArrowLeft:[-1,0],KeyA:[-1,0], ArrowRight:[1,0],KeyD:[1,0]
+};
+addEventListener('keydown',e=>{
+  if(keymap[e.code]){ e.preventDefault(); setDir(...keymap[e.code]); }
+  if(e.code==='KeyP' && running){ paused=!paused; paused?show('pause'):hide('pause'); }
+  if(e.code==='KeyR' && (running||!menuVisible())){ startGame(curLevel); }
+});
+document.querySelectorAll('.mob button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[b.dataset.dir]; setDir(...d);
+  });
+});
+// swipe
+let tsx,tsy;
+addEventListener('touchstart',e=>{tsx=e.touches[0].clientX;tsy=e.touches[0].clientY},{passive:true});
+addEventListener('touchend',e=>{
+  if(tsx==null)return; const dx=e.changedTouches[0].clientX-tsx, dy=e.changedTouches[0].clientY-tsy;
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1); tsx=null;
+},{passive:true});
+
+// ---------- UI ----------
+function show(id){document.getElementById(id).classList.remove('hidden');}
+function hide(id){document.getElementById(id).classList.add('hidden');}
+function menuVisible(){return !document.getElementById('menu').classList.contains('hidden');}
+
+const list=document.getElementById('levelList');
+LEVELS.forEach(l=>{
+  const d=document.createElement('div'); d.className='lv';
+  d.innerHTML=`<div class="ic">${l.ic}</div><div class="nm">${l.nm}</div><div class="ds">${l.ds}</div>`;
+  d.onclick=()=>startGame(l); list.appendChild(d);
+});
+document.getElementById('retryBtn').onclick=()=>startGame(curLevel);
+
+// pradinė kamera meniu
+camera.position.set(0,16,16); camera.lookAt(0,0,0);
+GRID=17; buildBoard();
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+} // pabaiga: if(typeof THREE!=='undefined')
+</script>
+</body>
+</html>
