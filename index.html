@@ -70,9 +70,15 @@
   .lb li{display:flex;justify-content:space-between;padding:6px 16px;color:#dce8f5;font-weight:600;border-radius:8px}
   .lb li .rk{width:30px;text-align:left}.lb li .nm2{flex:1;text-align:left;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lb li .sc{color:#7be08a}.lb li.me{background:rgba(120,220,140,.16)}.lb .empty{color:#7f93a8;text-align:center;padding:10px;font-size:13px}
-  #boxArt{font-size:120px;cursor:pointer;user-select:none;animation:boxWob 1.2s infinite}
-  @keyframes boxWob{0%,100%{transform:rotate(-5deg) scale(1)}50%{transform:rotate(5deg) scale(1.07)}}
-  #mysteryReward{font-size:24px;font-weight:900;margin-top:12px;min-height:34px;color:#ffd23a}
+  #boxArt{font-size:150px;cursor:pointer;user-select:none;animation:boxWob 1s infinite;filter:drop-shadow(0 10px 30px rgba(255,210,60,.5))}
+  @keyframes boxWob{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(6deg) scale(1.1)}}
+  #rewardCard{display:flex;flex-direction:column;align-items:center;animation:rwPop .55s cubic-bezier(.18,1.5,.4,1)}
+  #rewardIcon{font-size:clamp(90px,18vw,150px);line-height:1;filter:drop-shadow(0 8px 26px rgba(255,210,60,.65))}
+  #mysteryReward{font-size:clamp(44px,10vw,84px);font-weight:900;color:#ffd23a;text-shadow:0 0 34px rgba(255,210,60,.7),0 4px 10px rgba(0,0,0,.5);margin-top:4px;line-height:1.05}
+  #rewardLabel{font-size:clamp(16px,4vw,22px);color:#dce8f5;margin-top:6px;font-weight:700;letter-spacing:1px}
+  @keyframes rwPop{0%{transform:scale(0) rotate(-15deg);opacity:0}60%{transform:scale(1.18) rotate(4deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+  .confetti{position:fixed;top:-24px;width:11px;height:17px;z-index:60;border-radius:2px;animation:confFall 1.7s ease-in forwards}
+  @keyframes confFall{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(108vh) rotate(620deg);opacity:.15}}
   #showcase{background:radial-gradient(circle at 50% 35%,rgba(6,9,20,.15),rgba(6,9,20,.78));backdrop-filter:none;justify-content:space-between}
   .mob{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:20;display:none;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(2,60px);gap:8px}
   .mob button{width:60px;height:60px;border-radius:16px;border:1px solid rgba(255,255,255,.25);background:rgba(8,12,26,.5);color:#fff;font-size:23px;backdrop-filter:blur(6px)}
@@ -143,9 +149,13 @@
 
 <div class="overlay hidden" id="mystery">
   <h1>🎁 Dovanų dėžutė</h1>
-  <div class="sub" id="mysterySub">Sugrįžai! Spustelk dėžutę ir atidaryk šiandienos dovaną.</div>
+  <div class="sub" id="mysterySub">Spustelk dėžutę ir atidaryk dovaną!</div>
   <div id="boxArt">🎁</div>
-  <div id="mysteryReward"></div>
+  <div id="rewardCard" class="hidden">
+    <div id="rewardIcon">🪙</div>
+    <div id="mysteryReward"></div>
+    <div id="rewardLabel"></div>
+  </div>
   <button class="btn hidden" id="mysteryClose">PAIMTI</button>
 </div>
 
@@ -562,23 +572,27 @@ function renderShop(){ document.querySelectorAll('#shop .tab').forEach(t=>t.clas
   else if(shopTab==='up'){ h='<div class="grid">'; Object.keys(UPGRADES).forEach(k=>{ const u=UPGRADES[k],lvl=up[k]||0,maxed=lvl>=u.max,cost=maxed?0:u.costs[lvl]; h+='<div class="card '+(lvl>0?'owned2':'')+'" data-up="'+k+'"><div class="em">'+u.ic+'</div><div class="cn">'+u.nm+'</div><div style="font-size:11px;color:#9fb0c4;margin:4px 0">'+u.desc+'</div><div class="cn" style="color:#7be08a">Lygis '+lvl+'/'+u.max+'</div>'+(maxed?'<div class="cc owned">MAX</div>':'<div class="cc">🪙 '+cost+'</div>')+'</div>'; }); h+='</div>'; }
   else if(shopTab==='garage'){ const cats=[...new Set(GARAGE.map(g=>g.cat))]; h='<div class="grid">'; cats.forEach(cat=>{ h+='<div class="cat">'+cat+'</div>'; GARAGE.filter(g=>g.cat===cat).forEach(it=>{ const owned=ownedGarage.includes(it.id); h+='<div class="card '+(owned?'owned2':'')+'" data-gar="'+it.id+'"><div class="em">'+it.em+'</div><div class="cn">'+it.nm+'</div>'+(owned?'<div class="cc owned">👁 Peržiūrėti</div>':'<div class="cc">🪙 '+it.cost+'</div>')+'</div>'; }); }); h+='</div>'; }
   else if(shopTab==='hotels'){ h='<div class="sub">Gyvenk prabangiame viešbutyje — visi uždirbti pinigai dauginami! Gauni ir VIP skiną.</div><div class="grid">'; HOTELS.forEach(ho=>{ const owned=ownedHotels.includes(ho.id); h+='<div class="card '+(owned?'owned2':'')+'" data-hotel="'+ho.id+'"><div class="em">'+ho.em+'</div><div class="cn">'+ho.nm+'</div><div class="cn" style="color:#ffd23a">💰 x'+ho.mult+' pinigai</div>'+(owned?'<div class="cc owned">✓ Apsistota</div>':'<div class="cc">🪙 '+ho.cost+'</div>')+'</div>'; }); h+='</div>'; }
-  else { h='<div class="sub">Atidaryk dėžutę ir gauk atsitiktinę dovaną — gali būti monetos arba retas skinas!</div><div class="grid"><div class="card" data-buybox="1"><div class="em">🎁</div><div class="cn">Mystery Box</div><div class="cc">🪙 100</div></div></div>'; }
+  else { h='<div class="sub">Azartas! Dažniausiai gausi mažiau nei sumokėjai, bet maždaug kas 4–5 dėžutės — solidus laimėjimas (didelės monetos ar retas skinas).</div><div class="grid"><div class="card" data-buybox="1"><div class="em">🎁</div><div class="cn">Mystery Box</div><div class="cc">🪙 300</div></div></div>'; }
   body.innerHTML=h;
   body.querySelectorAll('[data-skin]').forEach(c=>c.onclick=()=>{ const id=c.dataset.skin,s=SKINS.find(x=>x.id===id); if(ownedSkins.includes(id)){ selectedSkin=id; LS.setItem('snake3d_skin',id); applySkin(s); } else if(coins>=s.cost){ coins-=s.cost; saveCoins(); ownedSkins.push(id); LS.setItem('snake3d_skins',JSON.stringify(ownedSkins)); selectedSkin=id; LS.setItem('snake3d_skin',id); applySkin(s); Sound.coin(); } else return shake2(c); renderShop(); });
   body.querySelectorAll('[data-up]').forEach(c=>c.onclick=()=>{ const k=c.dataset.up,u=UPGRADES[k],lvl=up[k]||0; if(lvl>=u.max)return; const cost=u.costs[lvl]; if(coins>=cost){ coins-=cost; saveCoins(); up[k]=lvl+1; LS.setItem('snake3d_up',JSON.stringify(up)); Sound.coin(); renderShop(); } else shake2(c); });
   body.querySelectorAll('[data-gar]').forEach(c=>c.onclick=()=>{ const id=c.dataset.gar,it=GARAGE.find(g=>g.id===id); if(ownedGarage.includes(id)){ openShowcase(it,'shop'); return; } if(coins>=it.cost){ coins-=it.cost; saveCoins(); ownedGarage.push(id); LS.setItem('snake3d_garage',JSON.stringify(ownedGarage)); Sound.coin(); openShowcase(it,'shop'); } else shake2(c); });
   body.querySelectorAll('[data-hotel]').forEach(c=>c.onclick=()=>{ const id=c.dataset.hotel,ho=HOTELS.find(g=>g.id===id); if(ownedHotels.includes(id)){ return; } if(coins>=ho.cost){ coins-=ho.cost; ownedHotels.push(id); LS.setItem('snake3d_hotels',JSON.stringify(ownedHotels)); if(!ownedSkins.includes(ho.skin)){ ownedSkins.push(ho.skin); LS.setItem('snake3d_skins',JSON.stringify(ownedSkins)); } const sk=SKINS.find(s=>s.id===ho.skin); selectedSkin=ho.skin; LS.setItem('snake3d_skin',ho.skin); applySkin(sk); saveCoins(); Sound.gold(); openShowcase({id:'crown',em:ho.em,nm:ho.nm+' (VIP)'},'shop'); } else shake2(c); });
-  body.querySelectorAll('[data-buybox]').forEach(c=>c.onclick=()=>{ if(coins>=100){ coins-=100; saveCoins(); const rw=rollMystery(getNum('snake3d_streak',1)); openMystery(rw,false); } else shake2(c); });
+  body.querySelectorAll('[data-buybox]').forEach(c=>c.onclick=()=>{ if(coins>=300){ coins-=300; saveCoins(); const rw=rollShopBox(); openMystery(rw,false); } else shake2(c); });
 }
 function shake2(c){ c.animate([{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:200}); }
 
 // ============ Mystery box ============
+// Dienos (nemokama) dovana — dosni, auga su serija
 function rollMystery(streak){ const r=Math.random(); if(r<0.58) return {type:'coins',amount:Math.round((60+Math.random()*120)*(1+streak*0.08))}; if(r<0.84) return {type:'coins',amount:Math.round(280*(1+streak*0.08)),big:true}; if(r<0.95){ const un=SKINS.filter(s=>!s.vip&&!ownedSkins.includes(s.id)); if(un.length) return {type:'skin',skin:un[0]}; return {type:'coins',amount:450,big:true}; } return {type:'coins',amount:700,jackpot:true}; }
+// Parduotuvės dėžutė (300 🪙) — azartas, NE pajamų šaltinis. Solidūs laimėjimai tik ~kas 4-5 dėžutės.
+function rollShopBox(){ const r=Math.random(); if(r<0.76){ return {type:'coins',amount:40+Math.floor(Math.random()*120)}; } if(r<0.94){ const un=SKINS.filter(s=>!s.vip&&!ownedSkins.includes(s.id)); if(un.length&&Math.random()<0.5) return {type:'skin',skin:un[0]}; return {type:'coins',amount:350+Math.floor(Math.random()*200),big:true}; } return {type:'coins',amount:800,jackpot:true}; }
+function confettiBurst(){ const cols=['#ffd23a','#ff6a4d','#46c98a','#3fb0ff','#ff4fa0','#ffffff']; for(let i=0;i<46;i++){ const d=document.createElement('div'); d.className='confetti'; d.style.left=(15+Math.random()*70)+'%'; d.style.background=cols[(Math.random()*cols.length)|0]; d.style.animationDelay=(Math.random()*0.3)+'s'; document.body.appendChild(d); setTimeout(()=>d.remove(),2000); } }
 function rewardText(rw){ if(rw.type==='coins') return (rw.jackpot?'💰 JACKPOT! ':'')+'+'+rw.amount+' 🪙'; return '🎉 Naujas skinas: '+rw.skin.nm+'!'; }
 function grantReward(rw){ if(rw.type==='coins'){ coins+=rw.amount; saveCoins(); } else { ownedSkins.push(rw.skin.id); LS.setItem('snake3d_skins',JSON.stringify(ownedSkins)); } }
 let boxOpened=false,curBox=null,boxDaily=false;
-function openMystery(rw,isDaily){ curBox=rw; boxOpened=false; boxDaily=isDaily; document.getElementById('mysterySub').textContent=isDaily?'Sugrįžai! Spustelk dėžutę ir atidaryk šiandienos dovaną.':'Spustelk dėžutę!'; document.getElementById('boxArt').textContent='🎁'; document.getElementById('boxArt').style.animation='boxWob 1.2s infinite'; document.getElementById('mysteryReward').textContent=''; document.getElementById('mysteryClose').classList.add('hidden'); ['menu','shop'].forEach(hide); show('mystery'); }
-function revealBox(){ if(boxOpened||!curBox)return; boxOpened=true; grantReward(curBox); document.getElementById('boxArt').textContent='🎉'; document.getElementById('boxArt').style.animation='none'; document.getElementById('mysteryReward').textContent=rewardText(curBox); Sound.gold(); document.getElementById('mysteryClose').classList.remove('hidden'); }
+function openMystery(rw,isDaily){ curBox=rw; boxOpened=false; boxDaily=isDaily; document.getElementById('mysterySub').textContent=isDaily?'🔥 Sugrįžimo dovana! Spustelk dėžutę.':'Spustelk dėžutę!'; const ba=document.getElementById('boxArt'); ba.textContent='🎁'; ba.style.animation='boxWob 1s infinite'; ba.classList.remove('hidden'); document.getElementById('rewardCard').classList.add('hidden'); document.getElementById('mysteryClose').classList.add('hidden'); ['menu','shop'].forEach(hide); show('mystery'); }
+function revealBox(){ if(boxOpened||!curBox)return; boxOpened=true; grantReward(curBox); document.getElementById('boxArt').classList.add('hidden'); const card=document.getElementById('rewardCard'); card.classList.remove('hidden'); void card.offsetWidth; const ic=document.getElementById('rewardIcon'),rt=document.getElementById('mysteryReward'),lb=document.getElementById('rewardLabel'); ic.style.color=''; if(curBox.type==='coins'){ ic.textContent=curBox.jackpot?'💰':'🪙'; rt.textContent='+'+curBox.amount; lb.textContent=curBox.jackpot?'JACKPOT! 🎉':'MONETŲ'; } else { ic.textContent='🐍'; ic.style.color='#'+curBox.skin.head.toString(16).padStart(6,'0'); rt.textContent=curBox.skin.nm; lb.textContent='🎉 NAUJAS SKINAS!'; } document.getElementById('mysterySub').textContent='Sveikiname! 🎊'; Sound.gold(); confettiBurst(); document.getElementById('mysteryClose').classList.remove('hidden'); }
 function maybeDailyBox(){ const today=new Date().toDateString(); if(LS.getItem('snake3d_box')!==today){ LS.setItem('snake3d_box',today); const rw=rollMystery(getNum('snake3d_streak',1)); openMystery(rw,true); return true; } return false; }
 
 document.getElementById('retryBtn').onclick=()=>startGame(curWorld);
@@ -586,7 +600,7 @@ document.getElementById('menuBtn').onclick=showMenu; document.getElementById('pa
 document.getElementById('saveName').onclick=saveName; document.getElementById('shareBtn').onclick=shareResult;
 document.getElementById('openShop').onclick=openShop; document.getElementById('shopClose').onclick=showMenu;
 document.getElementById('openRecords').onclick=()=>{ renderRecords(); hide('menu'); show('records'); }; document.getElementById('recordsClose').onclick=showMenu;
-document.getElementById('openBox').onclick=()=>{ const rw=rollMystery(getNum('snake3d_streak',1)); openMystery(rw,false); };
+document.getElementById('openBox').onclick=()=>{ if(!maybeDailyBox()){ shopTab='box'; openShop(); } };
 document.getElementById('boxArt').onclick=revealBox;
 document.getElementById('mysteryClose').onclick=showMenu;
 document.getElementById('scClose').onclick=closeShowcase;
