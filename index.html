@@ -627,7 +627,7 @@ function pulseFood(){ if(food) food.scale.setScalar(1.8); }
 
 // ============ Globalus serveris (Firebase Realtime DB, nemokamas) ============
 // Įrašyk savo Firebase duomenų bazės nuorodą tarp kabučių (pvz. https://gyvatele-xxxx-default-rtdb.firebaseio.com)
-const GLOBAL_URL = '';
+const GLOBAL_URL = 'https://gameworld-1608c-default-rtdb.europe-west1.firebasedatabase.app';
 async function gSubmit(worldId,name,score){ if(!GLOBAL_URL)return; try{ await fetch(GLOBAL_URL+'/lb/'+worldId+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n:String(name).slice(0,12),s:score,t:Date.now()})}); }catch(e){} }
 async function gFetch(worldId){ if(!GLOBAL_URL)return null; try{ const r=await fetch(GLOBAL_URL+'/lb/'+worldId+'.json'); const d=await r.json(); if(!d)return []; return Object.values(d).filter(e=>e&&typeof e.s==='number').sort((a,b)=>b.s-a.s).slice(0,10); }catch(e){return null;} }
 function gListHtml(arr,nm){ let h='<ul class="lb"><div class="title">🌍 '+escapeHtml(nm.toUpperCase())+'</div>'; if(!arr||!arr.length){ h+='<div class="empty">Dar nėra pasaulio rezultatų</div>'; } else arr.forEach((e,i)=>{ const medal=['🥇','🥈','🥉'][i]||((i+1)+'.'); h+='<li><span class="rk">'+medal+'</span><span class="nm2">'+escapeHtml(e.n||'?')+'</span><span class="sc">'+e.s+'</span></li>'; }); return h+'</ul>'; }
