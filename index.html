@@ -124,9 +124,10 @@
     <span id="vipStat">VIP: Naujokas</span>
   </div>
   <div class="navbtns">
+    <button class="btn small" id="openChamp">🏆 Čempionatas</button>
     <button class="btn small" id="openShop">🛒 Parduotuvė</button>
     <button class="btn small" id="openBuilder">🛠️ Kurti pasaulį</button>
-    <button class="btn small ghost" id="openRecords">🏆 Rekordai</button>
+    <button class="btn small ghost" id="openRecords">📋 Rekordai</button>
     <button class="btn small ghost" id="openBox">🎁 Dėžutė</button>
   </div>
   <div class="daily" id="daily"></div>
@@ -163,6 +164,19 @@
   <h1>🎮 Draugo pasaulis</h1>
   <div class="sub" id="sharedSub"></div>
   <div><button class="btn" id="sharedPlay">ŽAISTI</button><button class="btn ghost" id="sharedSkip">Į MENIU</button></div>
+</div>
+
+<div class="overlay hidden" id="champ">
+  <h1>🏆 Gyvačių čempionatas</h1>
+  <div class="menuStats"><span>🏅 RP: <b id="cRP">0</b></span><span>🥇 Pergalės: <b id="cWins">0</b></span><span id="cRank">Reitingas: –</span></div>
+  <div class="tabs">
+    <button class="tab active" data-ctab="champs">🌍 Čempionatai</button>
+    <button class="tab" data-ctab="train">💪 Treniruotė</button>
+    <button class="tab" data-ctab="spon">🤝 Rėmėjai</button>
+    <button class="tab" data-ctab="rank">🏅 Reitingas</button>
+  </div>
+  <div id="champBody" style="min-height:200px"></div>
+  <button class="btn" id="champClose">GRĮŽTI</button>
 </div>
 
 <div class="overlay hidden" id="records">
@@ -272,6 +286,11 @@ const WORLDS=[
   { id:'moon', nm:'Mėnulis', ic:'🌙', ds:'Krateriai, Žemė danguje', grid:17, speed:120, walls:false, theme:'moon', cost:300 },
   { id:'saturn', nm:'Saturnas', ic:'🪐', ds:'Žiedų planeta', grid:19, speed:100, walls:true, theme:'saturn', cost:400 },
   { id:'space', nm:'Kosmosas', ic:'🚀', ds:'Žvaigždžių platforma', grid:21, speed:90, walls:false, theme:'space', cost:500 },
+  { id:'candy', nm:'Saldainių karalystė', ic:'🍭', ds:'Pastelinis saldumynų pasaulis', grid:17, speed:120, walls:false, theme:'candy', cost:600, fantasy:true },
+  { id:'mushroom', nm:'Švytintis grybynas', ic:'🍄', ds:'Neoniniai milžiniški grybai', grid:19, speed:110, walls:true, theme:'mushroom', cost:650, fantasy:true },
+  { id:'dragon', nm:'Drakonų ugnikalnis', ic:'🐉', ds:'Lava, kristalai ir ugnis', grid:19, speed:100, walls:true, theme:'dragon', cost:700, fantasy:true },
+  { id:'sky', nm:'Dangaus pilis', ic:'☁️', ds:'Plūduriuojančios debesų salos', grid:17, speed:120, walls:false, theme:'sky', cost:650, fantasy:true },
+  { id:'aurora', nm:'Auroros kristalai', ic:'🔮', ds:'Šiaurės pašvaistė ir kristalai', grid:19, speed:110, walls:false, theme:'aurora', cost:750, fantasy:true },
 ];
 const POWERS={
   double:{ nm:'Dvigubi taškai', ic:'⭐', color:0xffd400, dur:8000 },
@@ -345,7 +364,10 @@ const FOODSETS={
   water:[ {build:buildDuck,points:14,color:0xffd400},{build:buildBeach,points:16,color:0xff4757} ],
   space:[ {build:buildAsteroid,points:12,color:0x8a8f99},{build:buildStarFood,points:16,color:0xffe25a},{build:buildAlien,points:18,color:0x66dd55} ],
 };
+function buildLollipop(){ const g=new THREE.Group(); const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.7,6),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.4})); stick.position.y=0.35; g.add(stick); const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.12,20),mat(0xff4fa0,{roughness:.2,emissiveIntensity:.25})); disc.rotation.x=Math.PI/2; disc.position.y=0.78; g.add(disc); const sw=new THREE.Mesh(new THREE.TorusGeometry(0.2,0.05,8,20),mat(0xffffff,{emissiveIntensity:.1})); sw.position.set(0,0.78,0.07); g.add(sw); g.userData={wings:[],spin:true}; return g; }
+function buildDonut(){ const g=new THREE.Group(); const d=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.16,12,20),mat(0xc06a3a,{roughness:.5,emissiveIntensity:.1})); d.rotation.x=Math.PI/2; d.position.y=0.38; g.add(d); const ic=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.13,12,20),mat(0xff7ad0,{roughness:.3,emissiveIntensity:.18})); ic.rotation.x=Math.PI/2; ic.position.y=0.44; g.add(ic); g.userData={wings:[],spin:true}; return g; }
 const FOOD_GOLD={ build:buildGoldBall, points:60, color:0xffd24a, gold:true };
+FOODSETS.candy=[ {build:buildLollipop,points:14,color:0xff4fa0},{build:buildDonut,points:16,color:0xff7ad0} ];
 
 // ============ Temos ============
 const THEMES={
@@ -368,6 +390,11 @@ const THEMES={
   moon:{ sky:['#080a18','#1a2048'], fog:0x10142a, fogD:0.006, ground:0xb6b6c0, amb:0x7080c0, ambI:0.95, sun:0xffffff, sunI:1.3, sunPos:[12,18,6], accent:0x9fb0ff, deco:'moon', foodset:'space', card:'#3a4060' },
   saturn:{ sky:['#3a1f70','#9a4ab0'], fog:0x1a1030, fogD:0.009, ground:0x7a5aaa, amb:0x9070d0, ambI:0.95, sun:0xffe0b0, sunI:1.2, sunPos:[10,18,8], accent:0xf0c860, deco:'saturn', foodset:'space', card:'#5a3a8a' },
   space:{ sky:['#05060f','#101a55'], fog:0x06070f, fogD:0.005, ground:0x18205a, amb:0x6677dd, ambI:0.9, sun:0xbfcfff, sunI:1.1, sunPos:[8,18,8], accent:0x6fa0ff, deco:'space', foodset:'space', card:'#141c50' },
+  candy:{ sky:['#ff7ec8','#ffd6ec'], fog:0xffb0db, fogD:0.011, ground:0xff5fb0, amb:0xffd0e8, ambI:1.0, sun:0xfff0f6, sunI:1.2, sunPos:[10,18,8], accent:0xff3fa0, deco:'candy', foodset:'candy', card:'#ff6abf' },
+  mushroom:{ sky:['#06262c','#0f5a52'], fog:0x07242a, fogD:0.02, ground:0x0e3a36, amb:0x2faa9a, ambI:0.85, sun:0x8fffe0, sunI:0.85, sunPos:[8,18,8], accent:0x2fffc0, deco:'mushroom', foodset:'bugs', card:'#0f4a44' },
+  dragon:{ sky:['#3a0a08','#8a1a0c'], fog:0x2a0805, fogD:0.022, ground:0x4a1410, amb:0xff5a30, ambI:0.8, sun:0xffa050, sunI:1.0, sunPos:[8,16,8], accent:0xff5a20, deco:'dragon', foodset:'space', card:'#5a1810' },
+  sky:{ sky:['#4fb0ff','#cfeaff'], fog:0xcfe4ff, fogD:0.012, ground:0x9fd0f8, amb:0xdfeeff, ambI:1.05, sun:0xffffff, sunI:1.25, sunPos:[12,20,8], accent:0xffffff, deco:'sky', foodset:'bugs', card:'#a8d8f8' },
+  aurora:{ sky:['#08123f','#1f5f86'], fog:0x081030, fogD:0.014, ground:0x14264f, amb:0x4faaff, ambI:0.9, sun:0x9fffd0, sunI:1.0, sunPos:[10,18,8], accent:0x6fffd0, deco:'aurora', foodset:'space', card:'#173a64' },
 };
 
 // ============ Atmintis ============
@@ -381,6 +408,9 @@ let ownedGarage=getJSON('snake3d_garage',[]);
 let ownedHotels=getJSON('snake3d_hotels',[]);
 let garLv=getJSON('snake3d_garlv',{});
 let customWorlds=getJSON('snake3d_custom',[]);
+let stats=Object.assign({end:0,spd:0,rea:0,flx:0,uni:0},getJSON('snake3d_stats',{}));
+let champRP=getNum('snake3d_rp',0), champWins=getNum('snake3d_wins',0);
+let contracts=getJSON('snake3d_contracts',[]);
 let up=Object.assign({lives:0,slow:0,shield:0},getJSON('snake3d_up',{}));
 let selectedSkin=LS.getItem('snake3d_skin')||'green';
 let best=getNum('snake3d_best',0);
@@ -396,8 +426,8 @@ if(!LS.getItem('snake3d_lastcollect')) LS.setItem('snake3d_lastcollect',String(D
 function saveGarLv(){ LS.setItem('snake3d_garlv',JSON.stringify(garLv)); }
 function itemRate(id){ if(!INCOME[id]||!ownedGarage.includes(id))return 0; return INCOME[id]*(1+(garLv[id]||0)*0.5); }
 function totalRate(){ return Object.keys(INCOME).reduce((s,id)=>s+itemRate(id),0); }
-function pendingRent(){ const last=getNum('snake3d_lastcollect',Date.now()); const h=Math.min(12,(Date.now()-last)/3600000); return Math.floor(totalRate()*h); }
-function collectRent(){ const p=pendingRent(); if(p>0){ coins+=p; saveCoins(); } LS.setItem('snake3d_lastcollect',String(Date.now())); return p; }
+function pendingRent(){ const now=Date.now(),last=getNum('snake3d_lastcollect',now); let total=Math.floor(totalRate()*Math.min(12,(now-last)/3600000)); contracts.forEach(c=>{ const from=Math.max(last,c.start),to=Math.min(now,c.end); if(to>from) total+=Math.floor(c.rate*(to-from)/3600000); }); return total; }
+function collectRent(){ const p=pendingRent(); if(p>0){ coins+=p; saveCoins(); } LS.setItem('snake3d_lastcollect',String(Date.now())); pruneContracts(); return p; }
 function upgradeCost(id){ const it=GARAGE.find(g=>g.id===id),lv=garLv[id]||0; return Math.round(it.cost*0.35*(lv+1)); }
 
 // ---- Savo pasaulio kūrėjas ----
@@ -438,6 +468,24 @@ function shareWorld(w){ const cfg={n:w.nm,s:w.sky,g:w.ground,a:w.accent,gr:w.gri
 function worldFromShared(cfg){ return { id:'shared', nm:(cfg.n||'Draugo pasaulis').slice(0,18), custom:true, shared:true, sky:cfg.s, ground:cfg.g, accent:cfg.a, grid:cfg.gr||17, speed:cfg.sp||130, walls:!!cfg.wl, deco:cfg.d||'flowers', foodset:cfg.f||'bugs', music:!!cfg.m, rmult:cfg.r||1, price:cfg.p||0, ds:'Draugo pasaulis' }; }
 let pendingShared=null;
 (function(){ const m=(location.search||'').match(/[?&]w=([^&]+)/); if(!m)return; try{ const cfg=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1]))))); if(cfg&&cfg.s&&cfg.g!=null) pendingShared=worldFromShared(cfg); }catch(e){} })();
+
+// ---- Treniruotė (gyvatės statai) ----
+const STATDEF=[ {id:'end',nm:'Ištvermė',ic:'💪',desc:'+gyvybės (Lv3 ir Lv5)'},{id:'spd',nm:'Greitis',ic:'⚡',desc:'+taškai už maistą'},{id:'rea',nm:'Reakcija',ic:'🎯',desc:'+ilgesni bonusai'},{id:'flx',nm:'Lankstumas',ic:'🤸',desc:'galingesnis magnetas'},{id:'uni',nm:'Universalumas',ic:'🌐',desc:'+monetos žaidžiant'} ];
+function statCost(lv){ return 120+lv*120; }
+function saveStats(){ LS.setItem('snake3d_stats',JSON.stringify(stats)); }
+// ---- Čempionatai (pagal žemynus) ----
+const CHAMPS=[ {id:'eu',nm:'Europos taurė',ic:'🇪🇺',worldId:'paris',target:200,rp:100},{id:'as',nm:'Azijos lyga',ic:'🌏',worldId:'tokyo',target:230,rp:120},{id:'am',nm:'Amerikos kubokas',ic:'🌎',worldId:'newyork',target:260,rp:140},{id:'af',nm:'Afrikos iššūkis',ic:'🦁',worldId:'egypt',target:210,rp:110},{id:'oc',nm:'Okeanijos turnyras',ic:'🏝️',worldId:'water',target:220,rp:120},{id:'fan',nm:'Fantastikos finalas',ic:'🌈',worldId:'candy',target:300,rp:200} ];
+let champ=null;
+const FAKERANK=[['🐲 Drakonas',9850],['⚡ NeonGyvatė',8730],['🍭 SaldiKaralienė',7640],['🔥 Ugniaragis',6510],['🌌 KosmosasX',5480],['🍄 GrybųMeistras',4360],['🏆 ProGamer',3270],['🐍 Žaltvykslė',2150]];
+function rankList(){ const arr=FAKERANK.map(x=>({n:x[0],rp:x[1]})); arr.push({n:'⭐ TU',rp:champRP,me:true}); arr.sort((a,b)=>b.rp-a.rp); return arr; }
+function myRank(){ const l=rankList(); return l.findIndex(x=>x.me)+1; }
+// ---- Rėmėjai (kontraktai) ----
+const SPONSORS=[ {id:'turbo',nm:'TurboSport',em:'⚡',rate:40,req:1},{id:'fizz',nm:'FizzKola',em:'🥤',rate:60,req:2},{id:'lux',nm:'LuxModa',em:'💎',rate:95,req:4},{id:'aero',nm:'AeroJet',em:'✈️',rate:150,req:7} ];
+function sponsorRate(){ const now=Date.now(); return contracts.reduce((s,c)=>s+((c.end>now)?c.rate:0),0); }
+function currentRate(){ return totalRate()+sponsorRate(); }
+function signSponsor(sp,hours){ const now=Date.now(); collectRent(); contracts.push({id:sp.id,nm:sp.nm,em:sp.em,rate:sp.rate,start:now,end:now+hours*3600000}); LS.setItem('snake3d_contracts',JSON.stringify(contracts)); }
+function pruneContracts(){ const now=Date.now(); const before=contracts.length; contracts=contracts.filter(c=>c.end>now); if(contracts.length!==before) LS.setItem('snake3d_contracts',JSON.stringify(contracts)); }
+function fmtLeft(ms){ const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000); return h>0?(h+'h '+m+'min'):(m+'min'); }
 function updateStreak(){ const today=new Date().toDateString(),last=LS.getItem('snake3d_lastDay'); let s=getNum('snake3d_streak',0); if(last!==today){ const y=new Date(Date.now()-86400000).toDateString(); s=(last===y)?s+1:1; LS.setItem('snake3d_streak',s); LS.setItem('snake3d_lastDay',today); } else if(s<1){ s=1; LS.setItem('snake3d_streak',1);} return s; }
 function dayIndex(){ return Math.floor(Date.now()/86400000); }
 function dailyChallenge(){ const di=dayIndex(),free=WORLDS.filter(w=>w.cost===0),lvl=free[di%free.length]; return {lvl,target:80+(di%6)*30,reward:40,done:LS.getItem('snake3d_daily')===String(di),di}; }
@@ -527,6 +575,11 @@ function buildDeco(kind){ envGroup.clear(); const half=GRID/2;
   else if(kind==='moon'){ buildRing('crater',16); farBody(0x4a8cff,4,[ -GRID*0.6,GRID*1.0,-GRID*1.6],false,0.35); const flag=new THREE.Group(); const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2,6),new THREE.MeshStandardMaterial({color:0xdddddd})); pole.position.y=1; flag.add(pole); const fl=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.5),new THREE.MeshStandardMaterial({color:0x2255cc,side:THREE.DoubleSide})); fl.position.set(0.4,1.7,0); flag.add(fl); flag.position.set(GRID*0.7,0,GRID*0.5); envGroup.add(flag); }
   else if(kind==='saturn'){ farBody(0xd8b878,6,[ -GRID*0.3,GRID*1.2,-GRID*1.8],true,0.3); buildRing('rock',12); }
   else if(kind==='space'){ farBody(0x4a8cff,3,[ -GRID*1.2,GRID*1.0,-GRID*1.6],false,0.35); farBody(0xff8a5a,2,[GRID*1.3,GRID*0.8,-GRID*1.3],false,0.3); farBody(0xd8b878,2.4,[GRID*0.2,GRID*1.4,-GRID*2],true,0.3); }
+  else if(kind==='candy'){ for(let i=0;i<12;i++){ const a=i/12*Math.PI*2,r=GRID*0.9+Math.random()*GRID*0.4; const g=new THREE.Group(); const st=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,3,8),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3})); st.position.y=1.5; g.add(st); const top=new THREE.Mesh(new THREE.SphereGeometry(0.7,16,16),new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(i/12,0.85,0.66),roughness:.25,emissive:new THREE.Color().setHSL(i/12,0.85,0.4),emissiveIntensity:.3})); top.position.y=3.2; g.add(top); g.position.set(Math.cos(a)*r,0,Math.sin(a)*r); envGroup.add(g);} }
+  else if(kind==='mushroom'){ for(let i=0;i<14;i++){ const a=i/14*Math.PI*2+Math.random()*0.3,r=GRID*0.85+Math.random()*GRID*0.5,s=1+Math.random()*1.8; const g=new THREE.Group(); const st=new THREE.Mesh(new THREE.CylinderGeometry(0.18*s,0.26*s,1.6*s,8),new THREE.MeshStandardMaterial({color:0xe8f0e0,roughness:.6,emissive:0x2a5a4a,emissiveIntensity:.2})); st.position.y=0.8*s; g.add(st); const cap=new THREE.Mesh(new THREE.SphereGeometry(0.8*s,16,12,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x2fffc0,emissive:0x1faa88,emissiveIntensity:.7,roughness:.4})); cap.scale.set(1,0.7,1); cap.position.y=1.6*s; g.add(cap); g.position.set(Math.cos(a)*r,0,Math.sin(a)*r); envGroup.add(g);} }
+  else if(kind==='dragon'){ buildRing('rock',12); for(let i=0;i<8;i++){ const a=i/8*Math.PI*2,r=GRID*0.95; const cr=new THREE.Mesh(new THREE.ConeGeometry(0.3+Math.random()*0.4,2+Math.random()*2,5),new THREE.MeshStandardMaterial({color:0xff4a2a,emissive:0xff3a10,emissiveIntensity:.6,roughness:.3,metalness:.4})); cr.position.set(Math.cos(a)*r,1.2,Math.sin(a)*r); envGroup.add(cr);} farBody(0xff5a20,2.2,[-GRID*0.6,GRID*1.0,-GRID*1.4],false,0.6); }
+  else if(kind==='sky'){ for(let i=0;i<16;i++){ const a=Math.random()*Math.PI*2,r=GRID*0.7+Math.random()*GRID*0.8,y=1+Math.random()*6; const cl=new THREE.Group(); for(let k=0;k<4;k++){ const p=new THREE.Mesh(new THREE.SphereGeometry(0.6+Math.random()*0.5,12,10),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.9,emissive:0xbfe0ff,emissiveIntensity:.15})); p.position.set((Math.random()-.5)*1.4,(Math.random()-.5)*0.3,(Math.random()-.5)*1.4); cl.add(p);} cl.position.set(Math.cos(a)*r,y,Math.sin(a)*r); envGroup.add(cl);} }
+  else if(kind==='aurora'){ for(let i=0;i<8;i++){ const a=i/8*Math.PI*2,r=GRID*0.95; const sp=new THREE.Mesh(new THREE.ConeGeometry(0.3,2.5+Math.random()*2,5),new THREE.MeshStandardMaterial({color:0x6fffd0,emissive:0x2faaff,emissiveIntensity:.7,roughness:.2,metalness:.5,transparent:true,opacity:.85})); sp.position.set(Math.cos(a)*r,1.5,Math.sin(a)*r); envGroup.add(sp);} const cols=[0x2fffc0,0x6f8fff,0xc06fff]; for(let i=0;i<3;i++){ const rib=new THREE.Mesh(new THREE.PlaneGeometry(GRID*1.6,3),new THREE.MeshBasicMaterial({color:cols[i],transparent:true,opacity:.18,side:THREE.DoubleSide})); rib.position.set(0,8+i*2,-GRID*1.2); rib.rotation.x=0.3; envGroup.add(rib);} }
   else buildRing('trees',16);
 }
 function palmTree(){ const palm=new THREE.Group(); const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,2.2,6),new THREE.MeshStandardMaterial({color:0x9c6b3a,roughness:.9})); tr.position.y=1.1; palm.add(tr); for(let k=0;k<5;k++){ const lf=new THREE.Mesh(new THREE.ConeGeometry(0.18,1.4,5),new THREE.MeshStandardMaterial({color:0x2faa55,roughness:.7})); lf.position.y=2.2; lf.rotation.z=Math.cos(k/5*Math.PI*2)*1.1; lf.rotation.x=Math.sin(k/5*Math.PI*2)*1.1; palm.add(lf);} return palm; }
@@ -547,7 +600,7 @@ function spawnFood(){ let p,tries=0; do{ p={x:(Math.random()*GRID)|0,z:(Math.ran
 // ============ Bonusai ============
 function spawnPowerup(){ if(powerup)return; const keys=Object.keys(POWERS),key=keys[(Math.random()*keys.length)|0]; let p,tries=0; do{ p={x:(Math.random()*GRID)|0,z:(Math.random()*GRID)|0}; tries++; } while(tries<200&&(snake.some(s=>s.x===p.x&&s.z===p.z)||obstacles.some(o=>o.x===p.x&&o.z===p.z)||(foodPos&&foodPos.x===p.x&&foodPos.z===p.z))); const def=POWERS[key]; const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(0.42,0),new THREE.MeshStandardMaterial({color:def.color,emissive:def.color,emissiveIntensity:.7,metalness:.4,roughness:.2})); mesh.add(new THREE.PointLight(def.color,1.3,5)); const c=cell(p.x,p.z); mesh.position.set(c.x,0.5,c.z); mesh.castShadow=true; boardGroup.add(mesh); powerup={key,pos:p,mesh,ttl:9000}; }
 function despawnPowerup(){ if(powerup){ boardGroup.remove(powerup.mesh); powerup=null; } }
-function applyPower(key,worldPos){ const def=POWERS[key]; burst(worldPos,def.color,30); vibrate(40); if(key==='shrink'){ for(let i=0;i<3&&snake.length>3;i++) snake.pop(); const g=25*(activeKey==='double'?2:1); score+=g; document.getElementById('score').textContent=score; scorePopup(worldPos,'+'+g); Sound.power(); } else if(key==='shield'){ saves++; updateLivesHUD(); Sound.power(); scorePopup(worldPos,'🛡️ +1'); } else { activeKey=key; powerRemaining=def.dur+(key==='slow'?up.slow*2000:0); Sound.power(); scorePopup(worldPos,def.ic+' '+def.nm); } updatePowerHUD(); }
+function applyPower(key,worldPos){ const def=POWERS[key]; burst(worldPos,def.color,30); vibrate(40); if(key==='shrink'){ for(let i=0;i<3&&snake.length>3;i++) snake.pop(); const g=25*(activeKey==='double'?2:1); score+=g; document.getElementById('score').textContent=score; scorePopup(worldPos,'+'+g); Sound.power(); } else if(key==='shield'){ saves++; updateLivesHUD(); Sound.power(); scorePopup(worldPos,'🛡️ +1'); } else { activeKey=key; powerRemaining=(def.dur+(key==='slow'?up.slow*2000:0))*(1+stats.rea*0.08); Sound.power(); scorePopup(worldPos,def.ic+' '+def.nm); } updatePowerHUD(); }
 function updatePowerHUD(){ const pill=document.getElementById('powerPill'); if(activeKey){ const d=POWERS[activeKey]; document.getElementById('powerIc').textContent=d.ic; document.getElementById('powerName').textContent=d.nm; document.getElementById('powerTime').textContent=Math.ceil(powerRemaining/1000)+'s'; pill.classList.remove('hidden'); } else pill.classList.add('hidden'); }
 function updateLivesHUD(){ const p=document.getElementById('livesPill'); if(saves>0){ document.getElementById('livesN').textContent=saves; p.classList.remove('hidden'); } else p.classList.add('hidden'); }
 function effInterval(){ return curSpeed*(activeKey==='slow'?1.7:1); }
@@ -561,13 +614,15 @@ function burst(pos,color,count){ for(let i=0;i<count;i++){ const m=new THREE.Mes
 function updateParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const m=particles[i],u=m.userData; u.life+=dt; u.vy-=13*dt; m.position.x+=u.vx*dt; m.position.y+=u.vy*dt; m.position.z+=u.vz*dt; const k=Math.max(0,1-u.life/u.max); m.material.opacity=k; m.scale.setScalar(Math.max(0.01,k)); if(u.life>=u.max){ boardGroup.remove(m); m.material.dispose(); particles.splice(i,1); } } }
 
 // ============ Eiga ============
-function startGame(world){ showcasing=false; boardGroup.visible=true; envGroup.visible=true; showcaseGroup.visible=false; curWorld=world; GRID=world.grid; WALLS=world.walls; curSpeed=world.speed; minSpeed=Math.max(55,Math.floor(world.speed*0.55)); document.getElementById('levelName').textContent=world.nm; applyTheme(world.custom?customTheme(world):THEMES[world.theme]); Sound.setMusicEnabled(world.custom?!!world.music:true); const c0=Math.floor(GRID/2); snake=[{x:c0,z:c0},{x:c0-1,z:c0},{x:c0-2,z:c0}]; dir3={x:1,z:0}; nextDir={x:1,z:0}; score=0; foodEaten=0; combo=0; lastEatT=0; document.getElementById('score').textContent=0; particles=[]; despawnPowerup(); activeKey=null; powerRemaining=0; saves=up.lives+(up.shield?1:0); updatePowerHUD(); updateLivesHUD(); genObstacles(); buildBoard(); food=null; segMeshes=[]; headRef=makeHead(); segMeshes.push(headRef); for(let i=1;i<snake.length;i++) segMeshes.push(makeBody()); spawnFood(); syncMeshes(); ['menu','gameover','pause','shop','records','mystery','showcase'].forEach(hide); running=true; paused=false; tickAcc=0; lastTime=performance.now(); Sound.resume(); Sound.startMusic(); }
+function startGame(world){ showcasing=false; boardGroup.visible=true; envGroup.visible=true; showcaseGroup.visible=false; curWorld=world; GRID=world.grid; WALLS=world.walls; curSpeed=world.speed; minSpeed=Math.max(55,Math.floor(world.speed*0.55)); document.getElementById('levelName').textContent=world.nm; applyTheme(world.custom?customTheme(world):THEMES[world.theme]); Sound.setMusicEnabled(world.custom?!!world.music:true); const c0=Math.floor(GRID/2); snake=[{x:c0,z:c0},{x:c0-1,z:c0},{x:c0-2,z:c0}]; dir3={x:1,z:0}; nextDir={x:1,z:0}; score=0; foodEaten=0; combo=0; lastEatT=0; document.getElementById('score').textContent=0; particles=[]; despawnPowerup(); activeKey=null; powerRemaining=0; saves=up.lives+(up.shield?1:0)+(stats.end>=3?1:0)+(stats.end>=5?1:0); updatePowerHUD(); updateLivesHUD(); genObstacles(); buildBoard(); food=null; segMeshes=[]; headRef=makeHead(); segMeshes.push(headRef); for(let i=1;i<snake.length;i++) segMeshes.push(makeBody()); spawnFood(); syncMeshes(); ['menu','gameover','pause','shop','records','mystery','showcase','champ','builder','shared'].forEach(hide); running=true; paused=false; tickAcc=0; lastTime=performance.now(); Sound.resume(); Sound.startMusic(); }
 function syncMeshes(){ while(segMeshes.length<snake.length) segMeshes.push(makeBody()); while(segMeshes.length>snake.length){ const m=segMeshes.pop(); if(m!==headRef) boardGroup.remove(m); } snake.forEach((s,i)=>{ const c=cell(s.x,s.z),m=segMeshes[i]; m.position.set(c.x,0.4,c.z); if(i===0){ m.rotation.y=Math.atan2(dir3.x,dir3.z); } else { m.material=materials.body; m.scale.setScalar(Math.max(0.5,1-i*0.016)); } }); }
 function tick(){ if(activeKey==='magnet'&&foodPos){ for(let st=0;st<2;st++){ const h=snake[0]; let fx=foodPos.x,fz=foodPos.z; if(fx===h.x&&fz===h.z)break; if(Math.abs(h.x-fx)>=Math.abs(h.z-fz)) fx+=Math.sign(h.x-fx); else fz+=Math.sign(h.z-fz); if(obstacles.some(o=>o.x===fx&&o.z===fz))break; foodPos={x:fx,z:fz}; } const c=cell(foodPos.x,foodPos.z); if(food){ food.position.x=c.x; food.position.z=c.z; } } dir3=nextDir; const head=snake[0]; let nx=head.x+dir3.x, nz=head.z+dir3.z; const dead=(nx<0||nx>=GRID||nz<0||nz>=GRID)||snake.some((s,i)=>i<snake.length-1&&s.x===nx&&s.z===nz)||obstacles.some(o=>o.x===nx&&o.z===nz); if(dead){ if(saves>0){ saves--; updateLivesHUD(); shake=10; const hc=cell(head.x,head.z); burst(new THREE.Vector3(hc.x,0.5,hc.z),0x88ff99,26); vibrate(60); nextDir={x:-dir3.x,z:-dir3.z}; if(nextDir.x===0&&nextDir.z===0)nextDir={x:1,z:0}; return; } return gameOver(); } snake.unshift({x:nx,z:nz}); let ate=false;
-  const reach=activeKey==='magnet'?1:0;
-  if(foodPos&&(Math.abs(nx-foodPos.x)+Math.abs(nz-foodPos.z))<=reach){ ate=true; foodEaten++; const now=performance.now(); if(now-lastEatT<2600) combo++; else combo=1; lastEatT=now; const mult=(activeKey==='double'?2:1)*Math.max(1,combo); const base=foodDef?foodDef.points:10; const gain=base*mult; score+=gain; document.getElementById('score').textContent=score; curSpeed=Math.max(minSpeed,curSpeed-2.5); const wp=food?food.position.clone():new THREE.Vector3(); if(foodDef&&foodDef.gold){ Sound.gold(); coins+=Math.round(5*coinMult()); saveCoins(); burst(wp,0xffd24a,46); scorePopup(wp,'✨ +'+gain); shake=8; } else { Sound.eat(combo); burst(wp,foodDef?foodDef.color:ACCENT,16); scorePopup(wp,'+'+gain); } vibrate(16); showCombo(combo); fovKick=2.2; spawnFood(); if(foodEaten%3===0&&!powerup&&Math.random()<0.85) spawnPowerup(); }
+  const reach=activeKey==='magnet'?(stats.flx>=4?2:1):0;
+  if(foodPos&&(Math.abs(nx-foodPos.x)+Math.abs(nz-foodPos.z))<=reach){ ate=true; foodEaten++; const now=performance.now(); if(now-lastEatT<2600) combo++; else combo=1; lastEatT=now; const mult=(activeKey==='double'?2:1)*Math.max(1,combo); const base=foodDef?foodDef.points:10; const gain=Math.round(base*mult*(1+stats.spd*0.04)); score+=gain; document.getElementById('score').textContent=score; curSpeed=Math.max(minSpeed,curSpeed-2.5); const wp=food?food.position.clone():new THREE.Vector3(); if(foodDef&&foodDef.gold){ Sound.gold(); coins+=Math.round(5*coinMult()); saveCoins(); burst(wp,0xffd24a,46); scorePopup(wp,'✨ +'+gain); shake=8; } else { Sound.eat(combo); burst(wp,foodDef?foodDef.color:ACCENT,16); scorePopup(wp,'+'+gain); } vibrate(16); showCombo(combo); fovKick=2.2; spawnFood(); if(foodEaten%3===0&&!powerup&&Math.random()<0.85) spawnPowerup(); }
   if(!ate) snake.pop(); if(powerup&&nx===powerup.pos.x&&nz===powerup.pos.z){ const key=powerup.key,wp=powerup.mesh.position.clone(); despawnPowerup(); applyPower(key,wp); } syncMeshes(); }
-function gameOver(){ running=false; shake=16; Sound.die(); vibrate([30,40,60]); lastScore=score; lastHi=-1; const earned=Math.floor(score/10*coinMult()*(curWorld.rmult||1)); coins+=earned; saveCoins(); document.getElementById('coinsEarned').textContent=earned; document.getElementById('finalScore').textContent=score; let recTxt=''; if(score>best){ best=score; LS.setItem('snake3d_best',best); document.getElementById('best').textContent=best; recTxt='🏆 NAUJAS REKORDAS! '; } const d=dailyChallenge(); if(!d.done&&curWorld.id===d.lvl.id&&score>=d.target){ const r=completeDaily(); recTxt+='✅ Dienos iššūkis +'+r+'🪙'; } document.getElementById('newRec').textContent=recTxt; const id=curWorld.id,ne=document.getElementById('nameEntry'); if(qualifies(id,score)){ ne.classList.remove('hidden'); setTimeout(()=>{const n=document.getElementById('nameInput');n.value='';n.focus();},60);} else ne.classList.add('hidden'); renderLB(id); show('gameover'); }
+function gameOver(){ running=false; shake=16; Sound.die(); vibrate([30,40,60]); lastScore=score; lastHi=-1; const earned=Math.floor(score/10*coinMult()*(curWorld.rmult||1)*(1+stats.uni*0.04)); coins+=earned; saveCoins(); document.getElementById('coinsEarned').textContent=earned; document.getElementById('finalScore').textContent=score; let recTxt=''; if(score>best){ best=score; LS.setItem('snake3d_best',best); document.getElementById('best').textContent=best; recTxt='🏆 NAUJAS REKORDAS! '; } const d=dailyChallenge(); if(!d.done&&curWorld.id===d.lvl.id&&score>=d.target){ const r=completeDaily(); recTxt+='✅ Dienos iššūkis +'+r+'🪙'; }
+  if(champ){ const rivals=[champ.target-30+Math.random()*70,champ.target-5+Math.random()*55,champ.target+10+Math.random()*40].map(x=>Math.round(x)); const beat=score>=champ.target&&rivals.filter(rv=>score>=rv).length>=2; if(beat){ champRP+=champ.rp; champWins++; LS.setItem('snake3d_rp',champRP); LS.setItem('snake3d_wins',champWins); recTxt='🏆 ČEMPIONATAS LAIMĖTAS! +'+champ.rp+' RP  '+recTxt; } else { recTxt='😔 Čempionatas pralaimėtas (reikėjo '+champ.target+' tšk.)  '+recTxt; } champ=null; }
+  document.getElementById('newRec').textContent=recTxt; const id=curWorld.id,ne=document.getElementById('nameEntry'); if(qualifies(id,score)){ ne.classList.remove('hidden'); setTimeout(()=>{const n=document.getElementById('nameInput');n.value='';n.focus();},60);} else ne.classList.add('hidden'); renderLB(id); show('gameover'); }
 function pulseFood(){ if(food) food.scale.setScalar(1.8); }
 
 // ============ Globalus serveris (Firebase Realtime DB, nemokamas) ============
@@ -638,11 +693,11 @@ addEventListener('touchend',e=>{ if(tsx==null)return; const dx=e.changedTouches[
 function show(id){document.getElementById(id).classList.remove('hidden');}
 function hide(id){document.getElementById(id).classList.add('hidden');}
 function menuVisible(){return !document.getElementById('menu').classList.contains('hidden');}
-function showMenu(){ running=false; Sound.setMusicEnabled(true); ['gameover','pause','shop','records','mystery','showcase','builder','shared'].forEach(hide); refreshMenu(); show('menu'); }
+function showMenu(){ running=false; Sound.setMusicEnabled(true); ['gameover','pause','shop','records','mystery','showcase','builder','shared','champ'].forEach(hide); refreshMenu(); show('menu'); }
 function renderWorlds(){ const list=document.getElementById('levelList'); list.innerHTML=''; WORLDS.forEach(w=>{ const t=THEMES[w.theme]; const owned=ownedWorlds.includes(w.id); const d=document.createElement('div'); d.className='lv'; d.style.background='linear-gradient(160deg,'+t.sky[0]+','+t.card+')'; d.innerHTML='<div class="ic">'+w.ic+'</div><div class="nm">'+w.nm+'</div><div class="ds">'+w.ds+'</div>'+(owned?'':'<div class="lock">🔒<small>🪙 '+w.cost+'</small></div>'); d.onclick=()=>{ if(ownedWorlds.includes(w.id)) startGame(w); else if(coins>=w.cost){ coins-=w.cost; saveCoins(); ownedWorlds.push(w.id); LS.setItem('snake3d_worlds',JSON.stringify(ownedWorlds)); Sound.coin(); startGame(w); } else shake2(d); }; list.appendChild(d); });
   customWorlds.forEach(w=>{ const d=document.createElement('div'); d.className='lv'; d.style.background='linear-gradient(160deg,'+w.sky[0]+','+w.sky[1]+')'; d.innerHTML='<div class="ic">🛠️</div><div class="nm">'+escapeHtml(w.nm)+'</div><div class="ds">Tavo pasaulis</div><div data-act="share" style="position:absolute;top:2px;left:6px;font-size:14px;cursor:pointer">🔗</div><div data-act="del" style="position:absolute;top:2px;right:7px;font-size:14px;cursor:pointer">✕</div>'; d.onclick=(e)=>{ const act=(e.target&&e.target.dataset)?e.target.dataset.act:null; if(act==='del'){ customWorlds=customWorlds.filter(x=>x.id!==w.id); LS.setItem('snake3d_custom',JSON.stringify(customWorlds)); refreshMenu(); return; } if(act==='share'){ shareWorld(w); return; } startGame(w); }; list.appendChild(d); }); }
 function refreshMenu(){ updateCoinUI(); document.getElementById('streak').textContent=updateStreak(); document.getElementById('vipStat').textContent='VIP: '+vipRank(); document.getElementById('flexBadge').textContent=flexEmoji(); const d=dailyChallenge(),el=document.getElementById('daily'); el.className='daily'+(d.done?' done':''); el.innerHTML=d.done?'✅ Šiandienos iššūkis įveiktas! Grįžk rytoj.':'📅 <b>Dienos iššūkis:</b> surink <b>'+d.target+'</b> taškų pasaulyje „'+d.lvl.nm+'" → +'+d.reward+' 🪙';
-  const rb=document.getElementById('rentBanner'); if(totalRate()>0){ rb.style.display=''; rb.innerHTML='🏦 Tavo turtas uždirba <b>'+Math.round(totalRate())+'</b> 🪙/val · Sukaupta: <b>'+pendingRent()+'</b> 🪙 <button class="btn small" id="collectBtn" style="margin-left:8px;padding:6px 14px">Surinkti</button>'; document.getElementById('collectBtn').onclick=()=>{ const got=collectRent(); if(got>0)Sound.coin(); refreshMenu(); }; } else rb.style.display='none';
+  pruneContracts(); const rb=document.getElementById('rentBanner'); if(currentRate()>0){ rb.style.display=''; rb.innerHTML='🏦 Pajamos: <b>'+Math.round(currentRate())+'</b> 🪙/val · Sukaupta: <b>'+pendingRent()+'</b> 🪙 <button class="btn small" id="collectBtn" style="margin-left:8px;padding:6px 14px">Surinkti</button>'; document.getElementById('collectBtn').onclick=()=>{ const got=collectRent(); if(got>0)Sound.coin(); refreshMenu(); }; } else rb.style.display='none';
   renderWorlds(); }
 
 let shopTab='skins';
@@ -691,6 +746,22 @@ document.getElementById('boxArt').onclick=revealBox;
 document.getElementById('mysteryClose').onclick=showMenu;
 document.getElementById('scClose').onclick=closeShowcase;
 document.querySelectorAll('#shop .tab').forEach(t=>t.onclick=()=>{ shopTab=t.dataset.tab; renderShop(); });
+let champTab='champs';
+function startChamp(c){ champ=c; const w=WORLDS.find(x=>x.id===c.worldId); if(w) startGame(w); }
+function openChamp(){ pruneContracts(); document.getElementById('cRP').textContent=champRP; document.getElementById('cWins').textContent=champWins; document.getElementById('cRank').textContent='Reitingas: #'+myRank(); renderChamp(); ['menu','showcase'].forEach(hide); show('champ'); }
+function renderChamp(){ document.querySelectorAll('#champ .tab').forEach(t=>t.classList.toggle('active',t.dataset.ctab===champTab)); const body=document.getElementById('champBody'); let h='';
+  if(champTab==='champs'){ h='<div class="sub">Pasirink žemyno čempionatą. Pasiek tikslą ir aplenk varžovus — laimėk RP ir kilk reitinge! Pralaimėjus negauni nieko.</div><div class="grid">'; CHAMPS.forEach(c=>{ const w=WORLDS.find(x=>x.id===c.worldId); h+='<div class="card" data-champ="'+c.id+'"><div class="em">'+c.ic+'</div><div class="cn">'+c.nm+'</div><div style="font-size:11px;color:#9fb0c4;margin-top:3px">'+(w?w.ic+' '+w.nm:'')+'</div><div class="cc">🎯 '+c.target+' → +'+c.rp+' RP</div></div>'; }); h+='</div><div class="sub" style="margin-top:10px;color:#9fb0c4">➕ Savo čempionatą sukurk per „🛠️ Kurti pasaulį" (su dideliu atlygiu) ir pasidalink nuoroda su draugais!</div>'; }
+  else if(champTab==='train'){ h='<div class="sub">Treniruok gyvatę — kiekvienas statas suteikia pranašumą.</div><div class="grid">'; STATDEF.forEach(s=>{ const lv=stats[s.id]||0,maxed=lv>=5,cost=statCost(lv); h+='<div class="card '+(lv>0?'owned2':'')+'" data-stat="'+s.id+'"><div class="em">'+s.ic+'</div><div class="cn">'+s.nm+'</div><div style="font-size:10.5px;color:#9fb0c4;margin:3px 0">'+s.desc+'</div><div class="cn" style="color:#7be08a">Lv '+lv+'/5</div>'+(maxed?'<div class="cc owned">MAX</div>':'<div class="cc">🪙 '+cost+'</div>')+'</div>'; }); h+='</div>'; }
+  else if(champTab==='spon'){ h='<div class="sub">Laimėk čempionatus ir pritrauk rėmėjus! Pasirašyk kontraktą (1–24 val.) — jie moka kas valandą.</div>'; const now=Date.now(),active=contracts.filter(c=>c.end>now); if(active.length){ h+='<div class="cat">Aktyvūs kontraktai</div><div class="grid">'; active.forEach(c=>{ h+='<div class="card owned2"><div class="em">'+c.em+'</div><div class="cn">'+c.nm+'</div><div class="cc owned">'+c.rate+' 🪙/val</div><div style="font-size:10.5px;color:#9fb0c4;margin-top:2px">Liko: '+fmtLeft(c.end-now)+'</div></div>'; }); h+='</div>'; } h+='<div class="cat">Galimi rėmėjai</div><div class="grid">'; SPONSORS.forEach(s=>{ const locked=champWins<s.req; h+='<div class="card'+(locked?' locked':'')+'"><div class="em">'+s.em+'</div><div class="cn">'+s.nm+'</div><div class="cc'+(locked?'':' owned')+'">'+s.rate+' 🪙/val</div>'+(locked?'<div style="font-size:10.5px;color:#ffd23a;margin-top:3px">🔒 reikia '+s.req+' perg.</div>':'<div style="margin-top:5px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap"><button class="btn small" data-sign="'+s.id+'" data-h="1" style="padding:4px 8px;font-size:10px">1h</button><button class="btn small" data-sign="'+s.id+'" data-h="8" style="padding:4px 8px;font-size:10px">8h</button><button class="btn small" data-sign="'+s.id+'" data-h="24" style="padding:4px 8px;font-size:10px">24h</button></div>')+'</div>'; }); h+='</div>'; }
+  else { h='<div class="sub">Pasaulio gyvačių reitingas:</div><ul class="lb" style="width:380px;max-width:90vw">'; rankList().forEach((e,i)=>{ const medal=['🥇','🥈','🥉'][i]||((i+1)+'.'); h+='<li class="'+(e.me?'me':'')+'"><span class="rk">'+medal+'</span><span class="nm2">'+escapeHtml(e.n)+'</span><span class="sc">'+e.rp+' RP</span></li>'; }); h+='</ul>'; }
+  body.innerHTML=h;
+  body.querySelectorAll('[data-champ]').forEach(c=>c.onclick=()=>{ const ch=CHAMPS.find(x=>x.id===c.dataset.champ); if(ch) startChamp(ch); });
+  body.querySelectorAll('[data-stat]').forEach(c=>c.onclick=()=>{ const id=c.dataset.stat,lv=stats[id]||0; if(lv>=5)return; const cost=statCost(lv); if(coins>=cost){ coins-=cost; saveCoins(); stats[id]=lv+1; saveStats(); Sound.coin(); renderChamp(); } else shake2(c); });
+  body.querySelectorAll('[data-sign]').forEach(b=>b.onclick=()=>{ const s=SPONSORS.find(x=>x.id===b.dataset.sign); if(!s||champWins<s.req)return; signSponsor(s,+b.dataset.h); Sound.gold(); renderChamp(); });
+}
+document.getElementById('openChamp').onclick=openChamp;
+document.getElementById('champClose').onclick=showMenu;
+document.querySelectorAll('#champ .tab').forEach(t=>t.onclick=()=>{ champTab=t.dataset.ctab; renderChamp(); });
 const soundBtn=document.getElementById('soundBtn'); soundBtn.onclick=()=>{ const on=Sound.toggle(); soundBtn.textContent=on?'🔊':'🔇'; };
 
 // init
