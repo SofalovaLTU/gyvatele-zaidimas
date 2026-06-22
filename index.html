@@ -120,6 +120,7 @@
     <button class="btn small ghost" id="openBox">🎁 Dėžutė</button>
   </div>
   <div class="daily" id="daily"></div>
+  <div class="daily done" id="rentBanner" style="display:none"></div>
   <div class="sectTitle">🌍 Pasirink pasaulį</div>
   <div class="levels" id="levelList"></div>
   <div class="powers"><span>⭐ Dvigubi</span><span>🐢 Sulėtinimas</span><span>✂️ Sutrumpinimas</span><span>🧲 Magnetas</span><span>🛡️ Skydas</span></div>
@@ -352,6 +353,7 @@ let ownedSkins=getJSON('snake3d_skins',['green']);
 let ownedWorlds=getJSON('snake3d_worlds',['meadow','forest','mountains','city']);
 let ownedGarage=getJSON('snake3d_garage',[]);
 let ownedHotels=getJSON('snake3d_hotels',[]);
+let garLv=getJSON('snake3d_garlv',{});
 let up=Object.assign({lives:0,slow:0,shield:0},getJSON('snake3d_up',{}));
 let selectedSkin=LS.getItem('snake3d_skin')||'green';
 let best=getNum('snake3d_best',0);
@@ -361,6 +363,15 @@ function coinMult(){ let m=1; ownedHotels.forEach(id=>{ const h=HOTELS.find(x=>x
 function netWorth(){ let s=ownedGarage.reduce((a,id)=>{ const it=GARAGE.find(g=>g.id===id); return a+(it?it.cost:0); },0); s+=ownedHotels.reduce((a,id)=>{ const it=HOTELS.find(g=>g.id===id); return a+(it?it.cost:0); },0); return s; }
 function vipRank(){ const n=netWorth(); if(n>=15000)return 'Milijardierius 👑'; if(n>=6000)return 'Magnatas 💎'; if(n>=2500)return 'VIP ⭐'; if(n>=600)return 'Turtuolis'; return 'Naujokas'; }
 function flexEmoji(){ let b=null; ownedGarage.concat(ownedHotels).forEach(id=>{ const it=GARAGE.find(g=>g.id===id)||HOTELS.find(g=>g.id===id); if(it&&(!b||it.cost>b.cost)) b=it; }); return b?b.em:''; }
+// ---- Pasyvios pajamos (nuoma) ----
+const INCOME={ car:20, suv:32, heli:55, jet:85, yacht:120, villa:160 };
+if(!LS.getItem('snake3d_lastcollect')) LS.setItem('snake3d_lastcollect',String(Date.now()));
+function saveGarLv(){ LS.setItem('snake3d_garlv',JSON.stringify(garLv)); }
+function itemRate(id){ if(!INCOME[id]||!ownedGarage.includes(id))return 0; return INCOME[id]*(1+(garLv[id]||0)*0.5); }
+function totalRate(){ return Object.keys(INCOME).reduce((s,id)=>s+itemRate(id),0); }
+function pendingRent(){ const last=getNum('snake3d_lastcollect',Date.now()); const h=Math.min(12,(Date.now()-last)/3600000); return Math.floor(totalRate()*h); }
+function collectRent(){ const p=pendingRent(); if(p>0){ coins+=p; saveCoins(); } LS.setItem('snake3d_lastcollect',String(Date.now())); return p; }
+function upgradeCost(id){ const it=GARAGE.find(g=>g.id===id),lv=garLv[id]||0; return Math.round(it.cost*0.35*(lv+1)); }
 function updateStreak(){ const today=new Date().toDateString(),last=LS.getItem('snake3d_lastDay'); let s=getNum('snake3d_streak',0); if(last!==today){ const y=new Date(Date.now()-86400000).toDateString(); s=(last===y)?s+1:1; LS.setItem('snake3d_streak',s); LS.setItem('snake3d_lastDay',today); } else if(s<1){ s=1; LS.setItem('snake3d_streak',1);} return s; }
 function dayIndex(){ return Math.floor(Date.now()/86400000); }
 function dailyChallenge(){ const di=dayIndex(),free=WORLDS.filter(w=>w.cost===0),lvl=free[di%free.length]; return {lvl,target:80+(di%6)*30,reward:40,done:LS.getItem('snake3d_daily')===String(di),di}; }
@@ -371,7 +382,7 @@ const app=document.getElementById('app');
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.25;
+renderer.toneMapping=THREE.NoToneMapping; renderer.toneMappingExposure=1.0;
 app.appendChild(renderer.domElement);
 const scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x4a7a52,0.03);
 const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,400);
@@ -380,7 +391,7 @@ const ambLight=new THREE.AmbientLight(0x8090b0,0.75); scene.add(ambLight);
 const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
 sun.shadow.camera.near=1; sun.shadow.camera.far=90; sun.shadow.camera.left=-28;sun.shadow.camera.right=28;sun.shadow.camera.top=28;sun.shadow.camera.bottom=-28; sun.shadow.bias=-0.0004; scene.add(sun);
 const composer=new EffectComposer(renderer); composer.addPass(new RenderPass(scene,camera));
-const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.42,0.5,0.55); composer.addPass(bloom); composer.addPass(new OutputPass());
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.3,0.4,0.72); composer.addPass(bloom); composer.addPass(new OutputPass());
 const boardGroup=new THREE.Group(); scene.add(boardGroup);
 const envGroup=new THREE.Group(); scene.add(envGroup);
 const showcaseGroup=new THREE.Group(); showcaseGroup.visible=false; scene.add(showcaseGroup);
@@ -453,7 +464,7 @@ function buildDeco(kind){ envGroup.clear(); const half=GRID/2;
   else buildRing('trees',16);
 }
 function palmTree(){ const palm=new THREE.Group(); const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,2.2,6),new THREE.MeshStandardMaterial({color:0x9c6b3a,roughness:.9})); tr.position.y=1.1; palm.add(tr); for(let k=0;k<5;k++){ const lf=new THREE.Mesh(new THREE.ConeGeometry(0.18,1.4,5),new THREE.MeshStandardMaterial({color:0x2faa55,roughness:.7})); lf.position.y=2.2; lf.rotation.z=Math.cos(k/5*Math.PI*2)*1.1; lf.rotation.x=Math.sin(k/5*Math.PI*2)*1.1; palm.add(lf);} return palm; }
-function applyTheme(t){ theme=t; ACCENT=t.accent; scene.background=makeSky(t.sky[0],t.sky[1]); scene.fog.color.setHex(t.fog2!=null?t.fog2:t.fog); scene.fog.density=t.fogD*0.55; ambLight.color.setHex(t.amb); ambLight.intensity=t.ambI; sun.color.setHex(t.sun); sun.intensity=t.sunI; sun.position.set(t.sunPos[0],t.sunPos[1],t.sunPos[2]); document.documentElement.style.setProperty('--neon','#'+t.accent.toString(16).padStart(6,'0')); buildDeco(t.deco); }
+function applyTheme(t){ theme=t; ACCENT=t.accent; scene.background=makeSky(t.sky[0],t.sky[1]); scene.fog.color.setHex(t.fog2!=null?t.fog2:t.fog); scene.fog.density=t.fogD*0.55; ambLight.color.setHex(t.amb); ambLight.intensity=t.ambI*0.62; sun.color.setHex(t.sun); sun.intensity=t.sunI*0.82; sun.position.set(t.sunPos[0],t.sunPos[1],t.sunPos[2]); document.documentElement.style.setProperty('--neon','#'+t.accent.toString(16).padStart(6,'0')); buildDeco(t.deco); }
 function buildBoard(){ boardGroup.clear(); segMeshes=[]; headRef=null; const half=GRID/2; let floorMat; if(theme.tex){ floorMat=new THREE.MeshStandardMaterial({map:texField(theme.tex), roughness:theme.tex==='water'?0.3:0.85, metalness:theme.tex==='water'?0.45:0.06}); } else floorMat=new THREE.MeshStandardMaterial({color:theme.ground, roughness:theme.deco==='city'?0.5:0.92, metalness:theme.deco==='city'?0.35:0.05});
   const floor=new THREE.Mesh(new THREE.BoxGeometry(GRID,0.4,GRID),floorMat); floor.position.y=-0.2; floor.receiveShadow=true; boardGroup.add(floor);
   if(!theme.tex){ const grid=new THREE.GridHelper(GRID,GRID,0xffffff,0x000000); grid.material.opacity=.08; grid.material.transparent=true; grid.position.y=0.21; boardGroup.add(grid); }
@@ -563,20 +574,23 @@ function hide(id){document.getElementById(id).classList.add('hidden');}
 function menuVisible(){return !document.getElementById('menu').classList.contains('hidden');}
 function showMenu(){ running=false; ['gameover','pause','shop','records','mystery','showcase'].forEach(hide); refreshMenu(); show('menu'); }
 function renderWorlds(){ const list=document.getElementById('levelList'); list.innerHTML=''; WORLDS.forEach(w=>{ const t=THEMES[w.theme]; const owned=ownedWorlds.includes(w.id); const d=document.createElement('div'); d.className='lv'; d.style.background='linear-gradient(160deg,'+t.sky[0]+','+t.card+')'; d.innerHTML='<div class="ic">'+w.ic+'</div><div class="nm">'+w.nm+'</div><div class="ds">'+w.ds+'</div>'+(owned?'':'<div class="lock">🔒<small>🪙 '+w.cost+'</small></div>'); d.onclick=()=>{ if(ownedWorlds.includes(w.id)) startGame(w); else if(coins>=w.cost){ coins-=w.cost; saveCoins(); ownedWorlds.push(w.id); LS.setItem('snake3d_worlds',JSON.stringify(ownedWorlds)); Sound.coin(); startGame(w); } else shake2(d); }; list.appendChild(d); }); }
-function refreshMenu(){ updateCoinUI(); document.getElementById('streak').textContent=updateStreak(); document.getElementById('vipStat').textContent='VIP: '+vipRank(); document.getElementById('flexBadge').textContent=flexEmoji(); const d=dailyChallenge(),el=document.getElementById('daily'); el.className='daily'+(d.done?' done':''); el.innerHTML=d.done?'✅ Šiandienos iššūkis įveiktas! Grįžk rytoj.':'📅 <b>Dienos iššūkis:</b> surink <b>'+d.target+'</b> taškų pasaulyje „'+d.lvl.nm+'" → +'+d.reward+' 🪙'; renderWorlds(); }
+function refreshMenu(){ updateCoinUI(); document.getElementById('streak').textContent=updateStreak(); document.getElementById('vipStat').textContent='VIP: '+vipRank(); document.getElementById('flexBadge').textContent=flexEmoji(); const d=dailyChallenge(),el=document.getElementById('daily'); el.className='daily'+(d.done?' done':''); el.innerHTML=d.done?'✅ Šiandienos iššūkis įveiktas! Grįžk rytoj.':'📅 <b>Dienos iššūkis:</b> surink <b>'+d.target+'</b> taškų pasaulyje „'+d.lvl.nm+'" → +'+d.reward+' 🪙';
+  const rb=document.getElementById('rentBanner'); if(totalRate()>0){ rb.style.display=''; rb.innerHTML='🏦 Tavo turtas uždirba <b>'+Math.round(totalRate())+'</b> 🪙/val · Sukaupta: <b>'+pendingRent()+'</b> 🪙 <button class="btn small" id="collectBtn" style="margin-left:8px;padding:6px 14px">Surinkti</button>'; document.getElementById('collectBtn').onclick=()=>{ const got=collectRent(); if(got>0)Sound.coin(); refreshMenu(); }; } else rb.style.display='none';
+  renderWorlds(); }
 
 let shopTab='skins';
 function openShop(){ refreshMenu(); document.getElementById('shopVip').textContent='VIP turtas: 🪙 '+netWorth(); updateCoinUI(); renderShop(); ['menu','showcase'].forEach(hide); show('shop'); }
 function renderShop(){ document.querySelectorAll('#shop .tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===shopTab)); const body=document.getElementById('shopBody'); let h='';
   if(shopTab==='skins'){ h='<div class="grid">'; SKINS.filter(s=>!s.vip||ownedSkins.includes(s.id)).forEach(s=>{ const owned=ownedSkins.includes(s.id),sel=selectedSkin===s.id,col='#'+s.head.toString(16).padStart(6,'0'); h+='<div class="card '+(sel?'sel':'')+'" data-skin="'+s.id+'"><div class="swatch" style="background:'+col+'"></div><div class="cn">'+s.nm+'</div>'+(sel?'<div class="cc owned">✓ Pasirinkta</div>':(owned?'<div class="cc owned">Turima</div>':'<div class="cc">🪙 '+s.cost+'</div>'))+'</div>'; }); h+='</div>'; }
   else if(shopTab==='up'){ h='<div class="grid">'; Object.keys(UPGRADES).forEach(k=>{ const u=UPGRADES[k],lvl=up[k]||0,maxed=lvl>=u.max,cost=maxed?0:u.costs[lvl]; h+='<div class="card '+(lvl>0?'owned2':'')+'" data-up="'+k+'"><div class="em">'+u.ic+'</div><div class="cn">'+u.nm+'</div><div style="font-size:11px;color:#9fb0c4;margin:4px 0">'+u.desc+'</div><div class="cn" style="color:#7be08a">Lygis '+lvl+'/'+u.max+'</div>'+(maxed?'<div class="cc owned">MAX</div>':'<div class="cc">🪙 '+cost+'</div>')+'</div>'; }); h+='</div>'; }
-  else if(shopTab==='garage'){ const cats=[...new Set(GARAGE.map(g=>g.cat))]; h='<div class="grid">'; cats.forEach(cat=>{ h+='<div class="cat">'+cat+'</div>'; GARAGE.filter(g=>g.cat===cat).forEach(it=>{ const owned=ownedGarage.includes(it.id); h+='<div class="card '+(owned?'owned2':'')+'" data-gar="'+it.id+'"><div class="em">'+it.em+'</div><div class="cn">'+it.nm+'</div>'+(owned?'<div class="cc owned">👁 Peržiūrėti</div>':'<div class="cc">🪙 '+it.cost+'</div>')+'</div>'; }); }); h+='</div>'; }
+  else if(shopTab==='garage'){ const cats=[...new Set(GARAGE.map(g=>g.cat))]; h='<div class="sub">🏦 Prabangūs daiktai uždirba nuomą kas valandą! Investuok, kad nuoma augtų. Surink ją meniu lange.</div><div class="grid">'; cats.forEach(cat=>{ h+='<div class="cat">'+cat+'</div>'; GARAGE.filter(g=>g.cat===cat).forEach(it=>{ const owned=ownedGarage.includes(it.id),inc=INCOME[it.id]; let foot; if(!owned){ foot='<div class="cc">🪙 '+it.cost+'</div>'+(inc?'<div style="font-size:10px;color:#9fb0c4;margin-top:2px">🏦 +'+inc+'/val</div>':''); } else if(inc){ const lv=garLv[it.id]||0,rate=Math.round(itemRate(it.id)); foot='<div class="cc owned">🏦 '+rate+'/val · Lv'+lv+'</div>'+(lv<5?'<button class="btn small" data-invest="'+it.id+'" style="margin-top:6px;padding:5px 9px;font-size:10.5px">📈 Investuoti 🪙'+upgradeCost(it.id)+'</button>':'<div class="cc owned">MAX lygis</div>'); } else { foot='<div class="cc owned">👁 Peržiūrėti</div>'; } h+='<div class="card '+(owned?'owned2':'')+'" data-gar="'+it.id+'"><div class="em">'+it.em+'</div><div class="cn">'+it.nm+'</div>'+foot+'</div>'; }); }); h+='</div>'; }
   else if(shopTab==='hotels'){ h='<div class="sub">Gyvenk prabangiame viešbutyje — visi uždirbti pinigai dauginami! Gauni ir VIP skiną.</div><div class="grid">'; HOTELS.forEach(ho=>{ const owned=ownedHotels.includes(ho.id); h+='<div class="card '+(owned?'owned2':'')+'" data-hotel="'+ho.id+'"><div class="em">'+ho.em+'</div><div class="cn">'+ho.nm+'</div><div class="cn" style="color:#ffd23a">💰 x'+ho.mult+' pinigai</div>'+(owned?'<div class="cc owned">✓ Apsistota</div>':'<div class="cc">🪙 '+ho.cost+'</div>')+'</div>'; }); h+='</div>'; }
   else { h='<div class="sub">Azartas! Dažniausiai gausi mažiau nei sumokėjai, bet maždaug kas 4–5 dėžutės — solidus laimėjimas (didelės monetos ar retas skinas).</div><div class="grid"><div class="card" data-buybox="1"><div class="em">🎁</div><div class="cn">Mystery Box</div><div class="cc">🪙 300</div></div></div>'; }
   body.innerHTML=h;
   body.querySelectorAll('[data-skin]').forEach(c=>c.onclick=()=>{ const id=c.dataset.skin,s=SKINS.find(x=>x.id===id); if(ownedSkins.includes(id)){ selectedSkin=id; LS.setItem('snake3d_skin',id); applySkin(s); } else if(coins>=s.cost){ coins-=s.cost; saveCoins(); ownedSkins.push(id); LS.setItem('snake3d_skins',JSON.stringify(ownedSkins)); selectedSkin=id; LS.setItem('snake3d_skin',id); applySkin(s); Sound.coin(); } else return shake2(c); renderShop(); });
   body.querySelectorAll('[data-up]').forEach(c=>c.onclick=()=>{ const k=c.dataset.up,u=UPGRADES[k],lvl=up[k]||0; if(lvl>=u.max)return; const cost=u.costs[lvl]; if(coins>=cost){ coins-=cost; saveCoins(); up[k]=lvl+1; LS.setItem('snake3d_up',JSON.stringify(up)); Sound.coin(); renderShop(); } else shake2(c); });
-  body.querySelectorAll('[data-gar]').forEach(c=>c.onclick=()=>{ const id=c.dataset.gar,it=GARAGE.find(g=>g.id===id); if(ownedGarage.includes(id)){ openShowcase(it,'shop'); return; } if(coins>=it.cost){ coins-=it.cost; saveCoins(); ownedGarage.push(id); LS.setItem('snake3d_garage',JSON.stringify(ownedGarage)); Sound.coin(); openShowcase(it,'shop'); } else shake2(c); });
+  body.querySelectorAll('[data-gar]').forEach(c=>c.onclick=()=>{ const id=c.dataset.gar,it=GARAGE.find(g=>g.id===id); if(ownedGarage.includes(id)){ openShowcase(it,'shop'); return; } if(coins>=it.cost){ collectRent(); coins-=it.cost; saveCoins(); ownedGarage.push(id); LS.setItem('snake3d_garage',JSON.stringify(ownedGarage)); Sound.coin(); openShowcase(it,'shop'); } else shake2(c); });
+  body.querySelectorAll('[data-invest]').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); const id=b.dataset.invest,lv=garLv[id]||0; if(lv>=5)return; const cost=upgradeCost(id); if(coins>=cost){ collectRent(); coins-=cost; saveCoins(); garLv[id]=lv+1; saveGarLv(); Sound.coin(); renderShop(); } else shake2(b); });
   body.querySelectorAll('[data-hotel]').forEach(c=>c.onclick=()=>{ const id=c.dataset.hotel,ho=HOTELS.find(g=>g.id===id); if(ownedHotels.includes(id)){ return; } if(coins>=ho.cost){ coins-=ho.cost; ownedHotels.push(id); LS.setItem('snake3d_hotels',JSON.stringify(ownedHotels)); if(!ownedSkins.includes(ho.skin)){ ownedSkins.push(ho.skin); LS.setItem('snake3d_skins',JSON.stringify(ownedSkins)); } const sk=SKINS.find(s=>s.id===ho.skin); selectedSkin=ho.skin; LS.setItem('snake3d_skin',ho.skin); applySkin(sk); saveCoins(); Sound.gold(); openShowcase({id:'crown',em:ho.em,nm:ho.nm+' (VIP)'},'shop'); } else shake2(c); });
   body.querySelectorAll('[data-buybox]').forEach(c=>c.onclick=()=>{ if(coins>=300){ coins-=300; saveCoins(); const rw=rollShopBox(); openMystery(rw,false); } else shake2(c); });
 }
